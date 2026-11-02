@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IronHouse Bodybuilding Gym</title>
+  <meta name="description" content="Weekly training schedules for members, gym equipment, and exercise guides with video demonstrations for every muscle.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="logo" href="#top"><span class="logo-mark">IH</span><span>Iron<b>House</b></span></a>
+      <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
+      <nav class="nav-links">
+        <a href="#schedule">Schedule</a>
+        <a href="#bodyparts">Body Parts</a>
+        <a href="#exercises">Exercises</a>
+        <a href="#equipment">Equipment</a>
+        <a href="#guide">Training Guide</a>
+        <a href="#members" class="btn btn-sm">Members</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div>
+          <p class="eyebrow">Bodybuilding Club</p>
+          <h1>Train every muscle.<br><span>One plan per member.</span></h1>
+          <p class="lead">A 5-day split built for our members: four upper-body days for chest, back, shoulders, triceps and arms, plus a dedicated lower-body day for the quadriceps and hamstrings. Every exercise comes with step-by-step form and a video demonstration.</p>
+          <div class="hero-cta">
+            <a class="btn" href="#schedule">See the weekly schedule</a>
+            <a class="btn btn-ghost" href="#members">Register a member</a>
+          </div>
+          <dl class="stats" id="heroStats"></dl>
+        </div>
+        <div class="hero-visual">
+          <canvas id="heroCanvas" aria-label="Animated exercise demonstrations"></canvas>
+          <p class="hero-caption" id="heroCaption"></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="schedule" class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Weekly program</p>
+            <h2>Training schedule</h2>
+            <p class="muted">One or two muscles per day. The number of exercises per muscle grows with your level.</p>
+          </div>
+          <div class="controls">
+            <div class="segmented" role="radiogroup" aria-label="Level" id="levelTabs"></div>
+            <label class="select"><span>Goal</span><select id="goalSelect"></select></label>
+            <button class="btn btn-ghost btn-sm" id="printWeek">Print</button>
+          </div>
+        </div>
+        <div class="count-legend" id="countLegend"></div>
+        <div class="week-grid" id="weekGrid"></div>
+      </div>
+    </section>
+
+    <section id="bodyparts" class="section alt">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Exercise names</p>
+            <h2>Exercises by body part</h2>
+            <p class="muted">Every exercise, grouped by upper-body and lower-body muscle. Tap a name to watch its anime video.</p>
+          </div>
+          <div class="controls"><button class="btn btn-sm" id="downloadPrompts">Download all anime video prompts</button></div>
+        </div>
+        <div class="regions" id="regions"></div>
+      </div>
+    </section>
+
+    <section id="exercises" class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Exercise library</p>
+            <h2>Exercises &amp; video demos</h2>
+            <p class="muted">Tap any exercise for the full technique, tips, common mistakes and its video.</p>
+          </div>
+          <div class="controls">
+            <label class="search"><input id="exSearch" type="search" placeholder="Search exercises…" aria-label="Search exercises"></label>
+            <label class="select"><span>Type</span><select id="typeSelect">
+              <option value="all">All types</option><option value="Compound">Compound</option><option value="Isolation">Isolation</option>
+            </select></label>
+          </div>
+        </div>
+        <div class="chips" id="muscleFilters"></div>
+        <div class="ex-grid" id="exerciseGrid"></div>
+        <p class="empty" id="exEmpty" hidden>No exercises match your search.</p>
+      </div>
+    </section>
+
+    <section id="equipment" class="section alt">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">On the gym floor</p>
+            <h2>Equipment</h2>
+            <p class="muted">Everything needed to train every muscle group — and which exercises use it.</p>
+          </div>
+          <div class="controls"><div class="segmented" id="eqTabs"></div></div>
+        </div>
+        <div class="eq-grid" id="equipmentGrid"></div>
+      </div>
+    </section>
+
+    <section id="guide" class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Know your training</p>
+            <h2>Exercise types &amp; forms</h2>
+            <p class="muted">What the labels on each exercise mean, and how to set up your sets and reps.</p>
+          </div>
+        </div>
+
+        <h3 class="sub">Exercise types</h3>
+        <div class="guide-grid two" id="typeCards"></div>
+
+        <h3 class="sub">Exercise forms (training tools)</h3>
+        <div class="guide-grid" id="formCards"></div>
+
+        <h3 class="sub">Sets &amp; reps</h3>
+        <p class="muted rule-note">Every set in this program is <strong>10 to 14 reps</strong> — never fewer than 10, never more than 14. Each exercise has its own target:</p>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Exercise group</th><th>Sets (intermediate)</th><th>Reps</th><th>Examples</th></tr></thead>
+            <tbody>
+              <tr><td>Heavy main lifts</td><td>4</td><td>10</td><td>Bench press, deadlift, squat, overhead press, Romanian deadlift</td></tr>
+              <tr><td>Other compound lifts</td><td>4</td><td>10–12</td><td>Rows, pull-ups, leg press, incline press, dips</td></tr>
+              <tr><td>Isolation exercises</td><td>3</td><td>12–14</td><td>Curls, pushdowns, flys, leg extensions, leg curls</td></tr>
+              <tr><td>Small shoulder muscles</td><td>4</td><td>12–14</td><td>Lateral raise, face pull, reverse pec deck</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted rule-note">Beginners do 3 sets of everything; advanced members add 1 set. Pick a weight you can lift for the lowest rep number with good form — when you reach the highest number on every set, increase the weight.</p>
+
+        <h3 class="sub">Rest by goal</h3>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Goal</th><th>Rest (compound / isolation)</th><th>Load</th></tr></thead>
+            <tbody>
+              <tr><td>Muscle building</td><td>90 s / 60 s</td><td>Last 1–2 reps feel hard</td></tr>
+              <tr><td>Strength</td><td>2.5 min / 90 s</td><td>Heaviest weight that still allows 10 clean reps</td></tr>
+              <tr><td>Toning &amp; fat loss</td><td>45 s / 30 s</td><td>Moderate weight, short rests to keep heart rate up</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="sub">Golden rules</h3>
+        <div class="guide-grid">
+          <div class="card rule"><h4>Warm up</h4><p>5–10 minutes of light cardio, then 2 light sets of your first exercise before the working sets.</p></div>
+          <div class="card rule"><h4>Progressive overload</h4><p>When you hit the top of the rep range on every set, add 2.5–5 % weight next session.</p></div>
+          <div class="card rule"><h4>Tempo</h4><p>Lift in about 1 second, lower in 2–3 seconds. Control the weight — don't let it drop.</p></div>
+          <div class="card rule"><h4>Recover</h4><p>Sleep 7–9 hours, eat 1.6–2.2 g of protein per kg of body weight and use the rest days.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="members" class="section alt">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Subscribed members</p>
+            <h2>Members &amp; personal schedules</h2>
+            <p class="muted">Register a member with their subscription, level and goal — the site builds their personal weekly schedule.</p>
+          </div>
+        </div>
+        <div class="card staff-bar" id="staffBar" hidden></div>
+        <form class="card staff-login" id="staffLogin" hidden>
+          <h3>Staff sign in</h3>
+          <p class="muted small">Member records are private. Sign in with a staff account to view and manage them.</p>
+          <label>Email<input name="email" type="email" required autocomplete="username"></label>
+          <label>Password<input name="password" type="password" required autocomplete="current-password"></label>
+          <button class="btn" type="submit">Sign in</button>
+          <p class="form-error" id="loginError" hidden></p>
+        </form>
+        <div class="card empty-card" id="notStaff" hidden><p>This account is signed in but is not registered as staff. Ask the gym admin to add it to the staff table.</p></div>
+        <div class="members-grid" id="membersApp">
+          <form class="card member-form" id="memberForm" autocomplete="off">
+            <h3>New member</h3>
+            <label>Full name<input name="name" required maxlength="60" placeholder="e.g. Ahmad Al-Sabah"></label>
+            <label>Phone<input name="phone" type="tel" maxlength="20" placeholder="e.g. 9999 9999"></label>
+            <div class="row">
+              <label>Subscription<select name="months">
+                <option value="1">1 month</option><option value="3" selected>3 months</option><option value="6">6 months</option><option value="12">12 months</option>
+              </select></label>
+              <label>Start date<input name="start" type="date" required></label>
+            </div>
+            <div class="row">
+              <label>Level<select name="level"></select></label>
+              <label>Goal<select name="goal"></select></label>
+            </div>
+            <button class="btn" type="submit">Add member &amp; create schedule</button>
+            <p class="form-note" id="formNote">Members are saved in this browser only.</p>
+          </form>
+          <div class="member-list-wrap">
+            <div class="member-toolbar">
+              <label class="search"><input id="memberSearch" type="search" placeholder="Search members…" aria-label="Search members"></label>
+              <span class="muted" id="memberCount"></span>
+            </div>
+            <div class="member-list" id="memberList"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>© <span id="year"></span> IronHouse Bodybuilding Gym</span>
+      <span class="muted">Consult a doctor before starting a new training program.</span>
+    </div>
+  </footer>
+
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-panel">
+      <button class="modal-close" data-close aria-label="Close">✕</button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <div id="printArea"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/animator.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

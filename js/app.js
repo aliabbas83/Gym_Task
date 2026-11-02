@@ -38,8 +38,17 @@
     const base = ex.sets || (ex.type === "Compound" ? 4 : 3);
     const sets = level === "beginner" ? 3 : level === "advanced" ? Math.min(base + 1, 6) : base;
     const lo = Math.max(REP_MIN, ex.repsMin || REP_MIN), hi = Math.min(REP_MAX, ex.repsMax || REP_MAX);
-    return { sets, reps: lo === hi ? `${lo}` : `${lo}–${hi}`, rest: REST[goal][ex.type] };
+    return { sets, reps: lo === hi ? `${lo}` : `${lo}–${hi}`, rest: REST[goal][ex.type], kg: kgText(ex, level) };
   }
+  // Starting weight for a member level, e.g. "60 kg", "BW + 10 kg" or "Bodyweight".
+  function kgText(ex, level) {
+    const w = ex.weights;
+    if (!w) return "";
+    const n = w[level];
+    if (w.basis === "added to bodyweight") return n > 0 ? `BW + ${n} kg` : "Bodyweight";
+    return `${n} kg`;
+  }
+  const setLine = s => `${s.sets} × ${s.reps}${s.kg ? ` · ${s.kg}` : ""}`;
   function planDay(day, level, goal) {
     return day.muscles.map(m => ({
       muscle: m,
@@ -67,7 +76,7 @@
     const picks = ["bench-press", "deadlift", "back-squat", "ohp", "barbell-curl", "pull-up"].map(id => exById[id]);
     Anim.attach($("#heroCanvas"), muscleSpec(picks[0]), { cycle: picks.map(muscleSpec) });
     const cap = $("#heroCaption");
-    const tick = () => { const ex = picks[Math.floor(performance.now() / 6800) % picks.length]; cap.textContent = ex.name; cap.style.setProperty("--c", muscles[ex.muscle].color); };
+    const tick = () => { const ex = picks[Anim.cycleIndex($("#heroCanvas"))]; cap.textContent = ex.name; cap.style.setProperty("--c", muscles[ex.muscle].color); };
     tick(); setInterval(tick, 400);
   }
 
@@ -89,7 +98,7 @@
       ${groups.map(g => `
         ${groups.length > 1 ? `<p class="group-label" style="--c:${muscles[g.muscle].color}">${esc(muscles[g.muscle].name)}</p>` : ""}
         <ol class="day-list">${g.list.map(r => `
-          <li><button data-ex="${r.ex.id}"><span>${esc(r.ex.name)}</span><small>${r.sets} × ${r.reps}</small></button></li>`).join("")}
+          <li><button data-ex="${r.ex.id}"><span>${esc(r.ex.name)}</span><small>${setLine(r)}</small></button></li>`).join("")}
         </ol>`).join("")}
       <footer>${total} exercises · ~${minutes(groups)} min</footer>
     </article>`;
@@ -127,7 +136,7 @@
         <div class="ex-body">
           ${chip(e.muscle)}
           <h3><button data-ex="${e.id}">${esc(e.name)}</button></h3>
-          <div class="tags"><span class="tag sr">${(s => `${s.sets} × ${s.reps} reps`)(scheme(e, state.level, state.goal))}</span><span class="tag type-${e.type.toLowerCase()}">${e.type}</span><span class="tag">${esc(e.form)}</span></div>
+          <div class="tags"><span class="tag sr">${setLine(scheme(e, state.level, state.goal))}</span><span class="tag type-${e.type.toLowerCase()}">${e.type}</span><span class="tag">${esc(e.form)}</span></div>
           <p class="muted small">${e.equipment.map(q => esc(eqById[q].name)).join(" · ")}</p>
         </div>
       </article>`).join("");
@@ -146,7 +155,7 @@
           <div class="card part" style="--c:${m.color}">
             <h4>${esc(m.name)}</h4>
             <ol>${exercises.filter(e => e.muscle === k).map(e => `
-              <li><button class="link" data-ex="${e.id}">${esc(e.name)}</button><span class="sr-inline">${(s => `${s.sets} × ${s.reps}`)(scheme(e, state.level, state.goal))}</span></li>`).join("")}
+              <li><button class="link" data-ex="${e.id}">${esc(e.name)}</button><span class="sr-inline">${setLine(scheme(e, state.level, state.goal))}</span></li>`).join("")}
             </ol>
           </div>`).join("")}
         </div>
@@ -197,6 +206,10 @@
       ["Cables", e => /Cable/.test(e.form), "Pulleys keep constant tension on the muscle through the entire rep, and the angle can be adjusted to hit a muscle from any direction."],
       ["Bodyweight", e => e.form === "Bodyweight", "Your own body is the resistance — pull-ups, dips, hyperextensions. Add a weight belt or plate once the reps get easy."]
     ];
+    $("#kgExamples").innerHTML = ["bench-press", "back-squat", "deadlift", "lat-pulldown", "lateral-raise", "barbell-curl", "pull-up"]
+      .map(id => exById[id]).filter(e => e && e.weights).map(e => `<tr><td><button class="link" data-ex="${e.id}">${esc(e.name)}</button></td>
+        ${Object.keys(LEVELS).map(l => `<td>${kgText(e, l)}</td>`).join("")}<td class="muted">${esc(e.weights.basis)}</td></tr>`).join("");
+
     $("#formCards").innerHTML = forms.map(([t, f, d]) => `
       <div class="card guide-card"><div class="guide-top"><h4>${t}</h4><span class="tag">${count(f)} exercises</span></div><p>${d}</p></div>`).join("");
   }
@@ -230,12 +243,14 @@
     if (e.prompt && secs === e.secs) return e.prompt; // prompt stored (and editable) in Supabase
     const eq = e.equipment.map(q => eqById[q].name).join(" and ");
     const reps = Math.max(2, Math.floor(secs / 3.5));
-    return `Anime-style 2D animation, Japanese anime aesthetic: cel shading, clean bold line art, vibrant colors, dramatic gym lighting. ` +
-      `A muscular anime athlete with spiky hair performs the ${e.name} (${partOf(e)}) in a modern bodybuilding gym, using the ${eq}. ` +
-      `${secs}-second seamless loop, static side-view camera at hip height, full body always in frame. ` +
+    return `Studio-quality anime film, Japanese 2D animation: crisp clean line art, cel shading with soft gradients, rim lighting, rich vibrant colors, cinematic composition. ` +
+      `A muscular anime athlete with spiky golden hair, shirtless with well-defined muscles, dark training shorts and white sneakers, performs the ${e.name} (${partOf(e)}) ` +
+      `in a premium modern bodybuilding gym with moody spotlights and a softly blurred background (shallow depth of field), using the ${eq}. ` +
+      `${secs}-second seamless loop at 24 fps, locked-off side-view camera at hip height, subject centered, full body always in frame. ` +
       `Correct technique: ${e.steps.join(" ")} ` +
-      `${reps} smooth repetitions with a controlled tempo (1 second up, 2 seconds down), subtle anime speed lines on each lift, ` +
-      `a focused determined expression. Keep proportions realistic so the form is clear. No on-screen text, no logos, no music.`;
+      `${reps} smooth repetitions with a controlled tempo (1 second lifting, a short pause at the top, 2 seconds lowering), ` +
+      `the working muscle glowing softly at peak contraction, light anime speed lines on each lift, a focused determined expression. ` +
+      `Accurate anatomy and joint angles so the form is clear. No on-screen text, no logos, no watermark, no music.`;
   }
 
   function downloadPrompts() {
@@ -268,6 +283,14 @@
             <span class="video-tag">Anime demo</span>
             <div class="video-title"><small>${esc(partOf(e))}</small><strong>${esc(e.name)}</strong></div>
           </div>
+          <div class="player-bar">
+            <button class="btn btn-sm btn-ghost" data-play aria-label="Pause">❚❚ Pause</button>
+            <div class="segmented" role="radiogroup" aria-label="Playback speed">
+              <button role="radio" aria-checked="false" data-speed="0.5">Slow-mo</button>
+              <button role="radio" aria-checked="true" data-speed="1">Normal</button>
+            </div>
+            <span class="muted small">Tempo: 1 s lift · 2 s lower</span>
+          </div>
           <p class="video-note">Built-in anime demo. Generate the AI video with the prompt below and save it as <code>videos/${e.id}.mp4</code> — it will play here automatically, with the exercise name on top.</p>
           <div class="prompt-box">
             <div class="prompt-head"><strong>Anime AI video prompt</strong><button class="btn btn-sm" data-copy>Copy prompt</button></div>
@@ -283,7 +306,10 @@
           <dl class="facts">
             <div><dt>Secondary muscles</dt><dd>${esc(e.secondary)}</dd></div>
             <div><dt>Equipment</dt><dd>${e.equipment.map(q => esc(eqById[q].name)).join(", ")}</dd></div>
-            <div><dt>Your sets</dt><dd>${(s => `${s.sets} × ${s.reps}, rest ${fmtRest(s.rest)}`)(scheme(e, state.level, state.goal))} <span class="muted">(${LEVELS[state.level]}, ${GOALS[state.goal]})</span></dd></div>
+            <div><dt>Your sets</dt><dd>${(s => `${setLine(s)}, rest ${fmtRest(s.rest)}`)(scheme(e, state.level, state.goal))} <span class="muted">(${LEVELS[state.level]}, ${GOALS[state.goal]})</span></dd></div>
+            ${e.weights ? `<div><dt>Starting weight</dt><dd>
+              <div class="kg-levels">${Object.keys(LEVELS).map(l => `<span class="${l === state.level ? "on" : ""}"><small>${LEVELS[l]}</small><b>${kgText(e, l)}</b></span>`).join("")}</div>
+              <span class="muted small">${esc(e.weights.basis)} · for ${e.repsMin ?? 10}–${e.repsMax ?? 14} reps</span></dd></div>` : ""}
           </dl>
           <h3>How to perform</h3>
           <ol class="steps">${e.steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol>
@@ -295,9 +321,21 @@
       </div>`, true);
 
     const canvas = $(".ex-canvas", modalBody), video = $(".ex-video", modalBody);
-    Anim.attach(canvas, muscleSpec(e), { always: true });
+    Anim.attach(canvas, muscleSpec(e), { always: true, hud: true });
+    const play = $("[data-play]", modalBody);
+    play.addEventListener("click", () => {
+      const it = Anim.control(canvas, {});
+      Anim.control(canvas, { paused: !it.paused });
+      play.textContent = it.paused ? "▶ Play" : "❚❚ Pause";
+      play.setAttribute("aria-label", it.paused ? "Play" : "Pause");
+    });
+    $$("[data-speed]", modalBody).forEach(b => b.addEventListener("click", () => {
+      Anim.control(canvas, { speed: +b.dataset.speed });
+      $$("[data-speed]", modalBody).forEach(x => x.setAttribute("aria-checked", x === b));
+    }));
     video.addEventListener("loadeddata", () => {
       video.hidden = false; canvas.hidden = true;
+      $(".player-bar", modalBody).hidden = true;
       $(".video-tag", modalBody).textContent = "AI anime video";
       $(".video-note", modalBody).textContent = `AI video loaded from ${e.video || `videos/${e.id}.mp4`}`;
     }, { once: true });
@@ -394,9 +432,9 @@
       const groups = planDay(d, level, goal);
       return `<div class="prog-day">
         <h4>${d.day} — ${esc(d.title)} <span class="muted">~${minutes(groups)} min</span></h4>
-        <table class="table compact"><thead><tr><th>#</th><th>Exercise</th><th>Muscle</th><th>Sets</th><th>Reps</th><th>Rest</th></tr></thead><tbody>
+        <table class="table compact"><thead><tr><th>#</th><th>Exercise</th><th>Muscle</th><th>Sets</th><th>Reps</th><th>Weight</th><th>Rest</th></tr></thead><tbody>
         ${groups.flatMap(g => g.list).map((r, i) => `<tr><td>${i + 1}</td><td><button class="link" data-ex="${r.ex.id}">${esc(r.ex.name)}</button></td>
-          <td><span class="dot" style="--c:${muscles[r.ex.muscle].color}"></span>${esc(muscles[r.ex.muscle].name)}</td><td>${r.sets}</td><td>${r.reps}</td><td>${fmtRest(r.rest)}</td></tr>`).join("")}
+          <td><span class="dot" style="--c:${muscles[r.ex.muscle].color}"></span>${esc(muscles[r.ex.muscle].name)}</td><td>${r.sets}</td><td>${r.reps}</td><td><b>${r.kg}</b> <span class="muted small">${esc(r.ex.weights ? r.ex.weights.basis : "")}</span></td><td>${fmtRest(r.rest)}</td></tr>`).join("")}
         </tbody></table></div>`;
     }).join("");
   }

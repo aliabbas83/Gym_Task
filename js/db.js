@@ -36,7 +36,8 @@
           id: e.id, muscle: e.muscle_id, name: e.name, type: e.type, form: e.form, level: e.level, secondary: e.secondary,
           equipment: e.exercise_equipment.sort(bySort).map(x => x.equipment_id),
           anim: { p: e.anim_pattern, h: e.anim_hand }, steps: e.steps, tips: e.tips, mistakes: e.mistakes, video: e.video_url,
-          sets: e.sets, repsMin: e.reps_min, repsMax: e.reps_max, prompt: e.ai_video_prompt, secs: e.video_length_seconds
+          sets: e.sets, repsMin: e.reps_min, repsMax: e.reps_max, prompt: e.ai_video_prompt, secs: e.video_length_seconds,
+          weights: { beginner: +e.weight_beginner_kg, intermediate: +e.weight_intermediate_kg, advanced: +e.weight_advanced_kg, basis: e.weight_basis }
         }))
       };
     },

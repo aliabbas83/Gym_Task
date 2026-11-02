@@ -3,6 +3,7 @@
 A static website for a bodybuilding gym:
 
 - **Weekly schedule:** a 5-day split. Each day targets one or two muscles: Chest · Back · Shoulders · Legs (quadriceps + hamstrings) · Arms (triceps + biceps/forearms), plus 2 rest days. The number of exercises per muscle depends on the level (Beginner 4/3, Intermediate 5/4, Advanced 6/5 for one-muscle/two-muscle days). Each exercise has its own sets and reps (`exercises.sets`, `reps_min`, `reps_max`). Reps are always between **10 and 14**, and the database rejects anything outside that range. Beginners do 3 sets and advanced members add 1. The goal sets the rest time.
+- **Starting weights (kg):** every exercise has a weight for beginner, intermediate and advanced members (`weight_beginner_kg`, `weight_intermediate_kg`, `weight_advanced_kg`). `weight_basis` says what the number measures: total including the bar, per dumbbell, machine stack, plates loaded, or added to bodyweight. Member schedules show the weight for that member's level.
 - **Exercises by body part:** every exercise name listed under its upper- or lower-body muscle. The same list is available as the Supabase view `exercises_by_body_part`.
 - **Exercise library:** 38 exercises, each with its type (compound/isolation), form (free weight, machine, cable, bodyweight), steps, tips, common mistakes, an animated demo and an AI-video prompt.
 - **Equipment:** 20 pieces of equipment, with the muscles each one trains and the exercises that use it.

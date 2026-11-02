@@ -613,3 +613,30 @@ window.GYM = {
     Object.assign(e, { sets, repsMin, repsMax });
   }
 })();
+
+// Starting weights in kg for 10–14 reps: [beginner, intermediate, advanced, what the number means].
+// Bodyweight moves use 0 for "bodyweight only"; higher numbers are extra weight (belt, plate).
+(() => {
+  const BAR = "total incl. 20 kg bar", EZ = "total incl. EZ bar", DB = "per dumbbell", ONE = "one dumbbell",
+    STACK = "machine stack", HANDLE = "per cable handle", PLATES = "plates loaded", ADD = "added to bodyweight";
+  const W = {
+    "bench-press": [40, 60, 90, BAR], "incline-db-press": [12, 22, 34, DB], "decline-press": [40, 60, 85, BAR],
+    "chest-dips": [0, 0, 15, ADD], "cable-crossover": [7.5, 12.5, 20, HANDLE], "pec-deck": [30, 50, 75, STACK],
+    "deadlift": [60, 100, 150, BAR], "pull-up": [0, 0, 10, ADD], "lat-pulldown": [35, 55, 80, STACK],
+    "barbell-row": [40, 60, 90, BAR], "seated-row": [35, 55, 80, STACK], "db-row": [16, 26, 40, DB],
+    "ohp": [30, 45, 65, BAR], "seated-db-press": [10, 18, 28, DB], "lateral-raise": [5, 8, 12, DB],
+    "front-raise": [5, 8, 12, DB], "reverse-pec-deck": [20, 35, 50, STACK], "face-pull": [15, 25, 35, STACK],
+    "close-grip-bench": [35, 55, 80, BAR], "rope-pushdown": [15, 25, 40, STACK], "skull-crusher": [15, 25, 40, EZ],
+    "overhead-extension": [10, 18, 28, ONE], "bench-dips": [0, 0, 20, ADD],
+    "barbell-curl": [20, 30, 45, BAR], "hammer-curl": [8, 14, 20, DB], "preacher-curl": [15, 25, 35, EZ],
+    "incline-curl": [6, 10, 16, DB], "reverse-curl": [15, 22, 30, EZ],
+    "back-squat": [50, 80, 120, BAR], "leg-press": [80, 140, 220, PLATES], "hack-squat": [40, 80, 130, PLATES],
+    "bulgarian-split-squat": [8, 16, 26, DB], "leg-extension": [30, 50, 75, STACK],
+    "rdl": [40, 70, 110, BAR], "lying-leg-curl": [20, 35, 55, STACK], "seated-leg-curl": [25, 40, 60, STACK],
+    "good-morning": [20, 40, 60, BAR], "hyperextension": [0, 10, 20, ADD]
+  };
+  for (const e of window.GYM.exercises) {
+    const [beginner, intermediate, advanced, basis] = W[e.id];
+    e.weights = { beginner, intermediate, advanced, basis };
+  }
+})();

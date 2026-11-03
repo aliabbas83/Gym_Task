@@ -16,6 +16,7 @@
       <a class="logo" href="#top"><span class="logo-mark">IH</span><span>Iron<b>House</b></span></a>
       <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
       <nav class="nav-links">
+        <a href="#gallery">Gallery</a>
         <a href="#schedule">Schedule</a>
         <a href="#bodyparts">Body Parts</a>
         <a href="#exercises">Exercises</a>
@@ -42,6 +43,45 @@
         <div class="hero-visual">
           <canvas id="heroCanvas" aria-label="Animated exercise demonstrations"></canvas>
           <p class="hero-caption" id="heroCaption"></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="gallery" class="section alt">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Community</p>
+            <h2>Share your workout</h2>
+            <p class="muted">Upload a photo from your training session. A coach checks every photo before it appears in the gallery.</p>
+          </div>
+        </div>
+        <div class="gallery-grid">
+          <form class="card share-form" id="shareForm" autocomplete="off">
+            <h3>Upload a workout photo</h3>
+            <label class="dropzone tall" id="shareDrop">
+              <input class="sr-only" type="file" id="shareInput" accept="image/jpeg,image/png,image/webp">
+              <img id="sharePreview" alt="Selected workout photo" hidden>
+              <span class="dz-text" id="shareText"><b>Choose a photo</b> or drag it here<small>JPG, PNG or WebP · up to 5 MB</small></span>
+            </label>
+            <div class="photo-actions" id="shareActions" hidden>
+              <span class="muted small" id="shareInfo"></span>
+              <button type="button" class="link small" id="shareClear">Remove</button>
+            </div>
+            <label>Caption <span class="muted">(optional)</span><input name="caption" maxlength="140" placeholder="e.g. New bench press PR — 80 kg!"></label>
+            <div class="row">
+              <label>Your name <span class="muted">(optional)</span><input name="name" maxlength="40" placeholder="e.g. Sara"></label>
+              <label>Muscle trained<select name="muscle"><option value="">—</option></select></label>
+            </div>
+            <label class="check"><input type="checkbox" name="consent" required> I took this photo (or have permission) and agree it can be shown on this website.</label>
+            <button class="btn" type="submit">Upload photo</button>
+            <p class="form-error" id="shareError" hidden></p>
+            <p class="form-ok" id="shareOk" hidden></p>
+          </form>
+          <div class="gallery-wall">
+            <div class="card pending-panel" id="pendingPanel" hidden></div>
+            <div class="photo-grid" id="photoGrid"></div>
+          </div>
         </div>
       </div>
     </section>

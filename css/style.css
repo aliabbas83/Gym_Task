@@ -201,6 +201,36 @@ select option { background: var(--surface); }
 .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .avatar-lg { width: 76px; height: 76px; font-size: 24px; border: 2px solid var(--accent); }
 .sheet-title { flex: 1; min-width: 0; }
+/* community gallery */
+.gallery-grid { display: grid; grid-template-columns: 380px 1fr; gap: 20px; align-items: start; }
+.share-form { display: grid; gap: 14px; }
+.share-form h3 { font-size: 22px; text-transform: uppercase; }
+.share-form label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); font-weight: 500; }
+.share-form .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.share-form label.check { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.45; }
+.share-form label.check input { width: 18px; height: 18px; margin: 1px 0 0; flex: none; accent-color: var(--accent); }
+.dropzone.tall { flex-direction: column; justify-content: center; text-align: center; min-height: 170px; }
+.dropzone.tall img { width: 100%; height: auto; max-height: 240px; border-radius: 10px; object-fit: contain; border: 0; background: #000; }
+.dropzone.tall.has-photo::after { content: "Click to choose a different photo"; }
+.form-ok { color: var(--good); font-size: 14px; background: rgb(46 211 160 / .1); border: 1px solid rgb(46 211 160 / .3); border-radius: 10px; padding: 10px 12px; }
+.gallery-wall { display: grid; gap: 16px; }
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); gap: 12px; }
+.shot { margin: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; }
+.shot-img { display: block; border: 0; padding: 0; background: #000; cursor: zoom-in; aspect-ratio: 4 / 3; }
+.shot-img img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s; }
+.shot-img:hover img { transform: scale(1.04); }
+.shot figcaption { padding: 10px 12px 12px; display: grid; gap: 6px; }
+.shot figcaption p { font-size: 14px; }
+.shot-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pending-panel { border-color: var(--warn); }
+.pending-panel h3 { font-size: 20px; text-transform: uppercase; display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+.pending-panel .photo-grid { margin-top: 12px; }
+.shot.pending { border-style: dashed; }
+.shot-large { margin: 0; display: grid; gap: 14px; }
+.shot-large img { width: 100%; max-height: 70vh; object-fit: contain; border-radius: 12px; background: #000; }
+.shot-large h2 { font-size: 26px; text-transform: uppercase; }
+@media (max-width: 960px) { .gallery-grid { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .share-form .row { grid-template-columns: 1fr; } }
 .staff-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px; margin-bottom: 16px; }
 .staff-login { max-width: 420px; display: grid; gap: 14px; }
 .staff-login h3 { font-size: 22px; text-transform: uppercase; }

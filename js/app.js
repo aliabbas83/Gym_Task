@@ -378,14 +378,22 @@
     if (file.size > PHOTO_MAX) return `That image is ${(file.size / 1048576).toFixed(1)} MB — the limit is 5 MB.`;
     return "";
   }
-  // Centre-crops to a square and scales to 600 px so uploads stay small; WebP when the browser supports it.
-  async function preparePhoto(file) {
+  // Shrinks images before upload so they stay small; WebP when the browser supports it.
+  // square: centre-crop to a 600 px square (avatars). Otherwise keep the shape, longest side ≤ max.
+  async function preparePhoto(file, { square = true, max = PHOTO_SIZE } = {}) {
     const url = URL.createObjectURL(file);
     try {
       const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error("This file could not be read as an image.")); i.src = url; });
-      const side = Math.min(img.naturalWidth, img.naturalHeight), out = Math.min(PHOTO_SIZE, side);
-      const c = document.createElement("canvas"); c.width = c.height = out;
-      c.getContext("2d").drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, out, out);
+      const iw = img.naturalWidth, ih = img.naturalHeight, c = document.createElement("canvas");
+      if (square) {
+        const side = Math.min(iw, ih), out = Math.min(max, side);
+        c.width = c.height = out;
+        c.getContext("2d").drawImage(img, (iw - side) / 2, (ih - side) / 2, side, side, 0, 0, out, out);
+      } else {
+        const k = Math.min(1, max / Math.max(iw, ih));
+        c.width = Math.round(iw * k); c.height = Math.round(ih * k);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      }
       const blob = await new Promise(ok => c.toBlob(ok, "image/webp", 0.85));
       return blob && blob.type === "image/webp" ? blob : await new Promise(ok => c.toBlob(ok, "image/jpeg", 0.85));
     } finally { URL.revokeObjectURL(url); }
@@ -394,6 +402,45 @@
   const avatar = (m, cls = "avatar") => photoUrls[m.id]
     ? `<div class="${cls}"><img src="${esc(photoUrls[m.id])}" alt="Photo of ${esc(m.name)}"></div>`
     : `<div class="${cls}">${initials(m.name)}</div>`;
+
+  // ---------- community workout gallery ----------
+  let gallery = [], pending = [], staffNow = false;
+  const ago = iso => {
+    const d = Math.round((Date.now() - new Date(iso)) / 86400000);
+    return d <= 0 ? "today" : d === 1 ? "yesterday" : d < 30 ? `${d} days ago` : fmtDate(new Date(iso));
+  };
+  function photoCard(p, staff) {
+    const m = p.muscle && muscles[p.muscle];
+    return `<figure class="shot${staff ? " pending" : ""}">
+      <button class="shot-img" data-shot="${p.id}" aria-label="View photo${p.caption ? ": " + esc(p.caption) : ""}"><img src="${esc(p.url)}" alt="${esc(p.caption || "Workout photo")}" decoding="async"></button>
+      <figcaption>
+        ${p.caption ? `<p>${esc(p.caption)}</p>` : ""}
+        <div class="shot-meta">${m ? chip(p.muscle) : ""}<span class="muted small">${esc(p.name || "Member")} · ${ago(p.created)}</span></div>
+        ${staff ? `<div class="member-actions"><button class="btn btn-sm" data-approve="${p.id}">Approve</button><button class="btn btn-sm btn-danger" data-reject="${p.id}">Reject</button></div>` : ""}
+      </figcaption>
+    </figure>`;
+  }
+  function renderGallery() {
+    $("#photoGrid").innerHTML = gallery.length ? gallery.map(p => photoCard(p, false)).join("")
+      : `<div class="card empty-card"><p>No workout photos yet — be the first to share one!</p></div>`;
+    const panel = $("#pendingPanel");
+    panel.hidden = !(staffNow && pending.length);
+    if (!panel.hidden) panel.innerHTML = `<h3>Waiting for approval <span class="badge">${pending.length}</span></h3>
+      <p class="muted small">Only staff see this. Approved photos appear in the public gallery; rejected photos are deleted.</p>
+      <div class="photo-grid">${pending.map(p => photoCard(p, true)).join("")}</div>`;
+  }
+  async function reloadGallery() {
+    try { gallery = await DB.listGallery(); } catch (err) { gallery = []; console.warn("Gallery unavailable", err); }
+    try { pending = staffNow ? await DB.listPendingPhotos() : []; } catch { pending = []; }
+    renderGallery();
+  }
+  function openShot(id) {
+    const p = gallery.concat(pending).find(x => x.id === id);
+    if (!p) return;
+    openModal(`<figure class="shot-large"><img src="${esc(p.url)}" alt="${esc(p.caption || "Workout photo")}">
+      <figcaption><h2 id="modalTitle">${esc(p.caption || "Workout photo")}</h2>
+      <div class="shot-meta">${p.muscle && muscles[p.muscle] ? chip(p.muscle) : ""}<span class="muted small">${esc(p.name || "Member")} · ${ago(p.created)}</span></div></figcaption></figure>`, true);
+  }
 
   // Changing the photo of an existing member: one hidden picker shared by every card.
   let photoTarget = null;
@@ -412,11 +459,16 @@
     if (!DB.remote) { bar.hidden = true; show("membersApp"); return reloadMembers(); }
     $("#formNote").textContent = "Saved to the gym database (Supabase). Visible to staff only.";
     const session = await DB.session();
-    if (!session) { bar.hidden = true; members = []; return show("staffLogin"); }
+    if (!session) {
+      bar.hidden = true; members = [];
+      if (staffNow) { staffNow = false; reloadGallery(); }
+      return show("staffLogin");
+    }
     bar.hidden = false;
     bar.innerHTML = `<span class="muted small">Signed in as <strong>${esc(session.user.email)}</strong></span><button class="btn btn-sm btn-ghost" data-signout>Sign out</button>`;
     let staff = false;
     try { staff = await DB.isStaff(); } catch (err) { fail(err); }
+    if (staff !== staffNow) { staffNow = staff; reloadGallery(); }
     if (!staff) return show("notStaff");
     show("membersApp");
     reloadMembers();
@@ -524,6 +576,15 @@
       }
       if (t.dataset.signout !== undefined) { DB.signOut().then(refreshAccess); return; }
       if (t.dataset.photo) { photoTarget = t.dataset.photo; $("#photoPicker").click(); return; }
+      if (t.dataset.shot) return openShot(t.dataset.shot);
+      if (t.dataset.approve || t.dataset.reject) {
+        const p = pending.find(x => x.id === (t.dataset.approve || t.dataset.reject));
+        if (!p) return;
+        if (t.dataset.reject && !confirm("Reject and delete this photo?")) return;
+        t.disabled = true;
+        DB.reviewPhoto(p, !!t.dataset.approve).then(reloadGallery, err => { t.disabled = false; fail(err); });
+        return;
+      }
       if (t.dataset.unphoto) {
         const m = members.find(x => x.id === t.dataset.unphoto);
         if (m && confirm(`Remove the photo of ${m.name}?`)) DB.removePhoto(m).then(reloadMembers, fail);
@@ -568,7 +629,7 @@
           try { await DB.setPhoto(saved, pendingPhoto); }
           catch (err) { fail(new Error("The member was saved, but the photo could not be uploaded: " + err.message)); }
         }
-        form.name.value = ""; form.phone.value = ""; clearPhoto();
+        form.elements.name.value = ""; form.phone.value = ""; clearPhoto();
         await reloadMembers(); openMember(saved.id);
       } catch (err) { fail(err); } finally { btn.disabled = false; }
     });
@@ -601,6 +662,51 @@
     ["dragleave", "drop"].forEach(t => drop.addEventListener(t, () => drop.classList.remove("dragging")));
     drop.addEventListener("drop", ev => { ev.preventDefault(); pickPhoto(ev.dataTransfer.files[0]); });
 
+    // Public "share your workout" upload on the home page.
+    const share = $("#shareForm"), sInput = $("#shareInput"), sDrop = $("#shareDrop"), sPrev = $("#sharePreview");
+    const sErr = $("#shareError"), sOk = $("#shareOk");
+    let shareBlob = null, shareUrl = "";
+    share.muscle.innerHTML = `<option value="">—</option>` + Object.entries(muscles).map(([k, m]) => `<option value="${k}">${esc(m.name)}</option>`).join("");
+    function clearShare() {
+      shareBlob = null; sInput.value = "";
+      if (shareUrl) URL.revokeObjectURL(shareUrl);
+      shareUrl = ""; sPrev.hidden = true; sPrev.removeAttribute("src");
+      $("#shareText").hidden = false; $("#shareActions").hidden = true; sDrop.classList.remove("has-photo");
+    }
+    async function pickShare(file) {
+      sErr.hidden = true; sOk.hidden = true;
+      const problem = checkPhoto(file);
+      if (problem) { clearShare(); sErr.textContent = problem; sErr.hidden = false; return; }
+      try {
+        const blob = await preparePhoto(file, { square: false, max: 1280 });
+        clearShare();
+        shareBlob = blob; shareUrl = URL.createObjectURL(blob);
+        sPrev.src = shareUrl; sPrev.hidden = false;
+        $("#shareText").hidden = true; $("#shareActions").hidden = false; sDrop.classList.add("has-photo");
+        $("#shareInfo").textContent = `${file.name} · ${Math.max(1, Math.round(blob.size / 1024))} KB after resizing`;
+      } catch (err) { clearShare(); sErr.textContent = err.message; sErr.hidden = false; }
+    }
+    sInput.addEventListener("change", () => pickShare(sInput.files[0]));
+    $("#shareClear").addEventListener("click", clearShare);
+    ["dragenter", "dragover"].forEach(t => sDrop.addEventListener(t, ev => { ev.preventDefault(); sDrop.classList.add("dragging"); }));
+    ["dragleave", "drop"].forEach(t => sDrop.addEventListener(t, () => sDrop.classList.remove("dragging")));
+    sDrop.addEventListener("drop", ev => { ev.preventDefault(); pickShare(ev.dataTransfer.files[0]); });
+    share.addEventListener("submit", async ev => {
+      ev.preventDefault();
+      sErr.hidden = true; sOk.hidden = true;
+      if (!shareBlob) { sErr.textContent = "Please choose a photo first."; sErr.hidden = false; return; }
+      const btn = share.querySelector("[type=submit]");
+      btn.disabled = true; btn.textContent = "Uploading…";
+      try {
+        const res = await DB.submitWorkoutPhoto({ blob: shareBlob, caption: share.caption.value.trim(), name: share.elements.name.value.trim(), muscle: share.muscle.value });
+        share.reset(); clearShare();
+        sOk.textContent = res.pending ? "Thanks! Your photo was uploaded and will appear in the gallery once a coach approves it." : "Thanks! Your photo was added to the gallery.";
+        sOk.hidden = false;
+        reloadGallery();
+      } catch (err) { sErr.textContent = "Upload failed: " + err.message; sErr.hidden = false; }
+      finally { btn.disabled = false; btn.textContent = "Upload photo"; }
+    });
+
     const picker = $("#photoPicker");
     picker.addEventListener("change", () => { changePhoto(picker.files[0]); picker.value = ""; });
 
@@ -620,7 +726,7 @@
   function renderCatalog() { renderWeek(); renderRegions(); renderFilters(); renderExercises(); renderEquipment(); renderGuide(); }
 
   $("#year").textContent = new Date().getFullYear();
-  renderHero(); renderCatalog(); bind(); refreshAccess();
+  renderHero(); renderCatalog(); bind(); refreshAccess(); reloadGallery();
   DB.onAuth(() => setTimeout(refreshAccess, 0));
   DB.loadCatalog().then(g => {
     if (!g) return;

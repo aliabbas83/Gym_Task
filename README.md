@@ -8,6 +8,7 @@ A static website for a bodybuilding gym:
 - **Exercise library:** 38 exercises, each with its type (compound/isolation), form (free weight, machine, cable, bodyweight), steps, tips, common mistakes, an animated demo and an AI-video prompt.
 - **Equipment:** 20 pieces of equipment, with the muscles each one trains and the exercises that use it.
 - **Members:** staff register subscribed members (plan length, level, goal). Each member gets a personal printable schedule.
+- **Community gallery (home page):** any visitor can upload a workout photo with an optional caption, name and muscle. Accepted formats are JPG, PNG and WebP up to 5 MB, resized to at most 1280 px in the browser, and the visitor must tick a consent box. New photos are saved as **pending** in the `workout_photos` table and the private `workout-photos` bucket. They appear publicly only after a signed-in staff member approves them in the "Waiting for approval" panel; rejected photos are deleted. At most 300 photos can wait for review at once.
 - **Member photos:** staff can upload a photo in the member form, by clicking or dragging an image in, or later with **Add/Change photo** on a member card. Accepted formats are JPG, PNG and WebP up to 5 MB. Images are centre-cropped and resized to 600 × 600 in the browser before upload. They're stored in the **private** Supabase bucket `member-photos`, which only staff can read or write, and shown through links that expire after an hour.
 
 ## Run locally

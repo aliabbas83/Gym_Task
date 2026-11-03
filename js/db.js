@@ -112,6 +112,20 @@
       if (!sb) { local.set(local.get().map(m => (m.id === id ? { ...m, photo: photo || "" } : m))); return; }
       must(await sb.from("members").update({ photo_path: photo }).eq("id", id));
     },
+    // ---- Write with AI (Supabase Edge Function → OpenRouter) ----
+    async writeWithAI({ task, muscle = "", draft = "" }) {
+      if (!sb) throw new Error("Write with AI needs the Supabase connection.");
+      const { data, error } = await sb.functions.invoke("write-with-ai", { body: { task, muscle, draft } });
+      if (error) {
+        // Non-2xx: the function's JSON { error } explains why.
+        let msg = error.message;
+        try { const b = await error.context.json(); if (b && b.error) msg = b.error; } catch { /* keep generic */ }
+        throw new Error(msg);
+      }
+      if (!data || !data.text) throw new Error("No text came back — please try again.");
+      return data.text;
+    },
+
     // ---- public workout gallery: anyone submits, staff approve before it is shown ----
     async submitWorkoutPhoto({ blob, caption, name, muscle }) {
       if (!sb) {

@@ -686,6 +686,20 @@
         $("#shareInfo").textContent = `${file.name} · ${Math.max(1, Math.round(blob.size / 1024))} KB after resizing`;
       } catch (err) { clearShare(); sErr.textContent = err.message; sErr.hidden = false; }
     }
+    // ✨ Write with AI: writes a caption from the chosen muscle, or polishes the typed draft.
+    const aiBtn = $("#aiCaption"), aiNote = $("#aiNote");
+    aiBtn.addEventListener("click", async () => {
+      const draft = share.caption.value.trim(), m = muscles[share.muscle.value];
+      aiBtn.disabled = true; aiBtn.textContent = "✨ Writing…"; aiNote.hidden = true; aiNote.classList.remove("err");
+      try {
+        share.caption.value = (await DB.writeWithAI({ task: "caption", muscle: m ? m.name : "", draft })).slice(0, 140);
+        aiNote.textContent = draft ? "Polished by AI — edit it as you like." : "Written by AI — edit it as you like, or click again for another idea.";
+      } catch (err) {
+        aiNote.textContent = err.message; aiNote.classList.add("err");
+      } finally {
+        aiNote.hidden = false; aiBtn.disabled = false; aiBtn.textContent = "✨ Write with AI";
+      }
+    });
     sInput.addEventListener("change", () => pickShare(sInput.files[0]));
     $("#shareClear").addEventListener("click", clearShare);
     ["dragenter", "dragover"].forEach(t => sDrop.addEventListener(t, ev => { ev.preventDefault(); sDrop.classList.add("dragging"); }));

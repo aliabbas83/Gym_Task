@@ -68,7 +68,14 @@
               <span class="muted small" id="shareInfo"></span>
               <button type="button" class="link small" id="shareClear">Remove</button>
             </div>
-            <label>Caption <span class="muted">(optional)</span><input name="caption" maxlength="140" placeholder="e.g. New bench press PR — 80 kg!"></label>
+            <div class="ai-field">
+              <div class="ai-head">
+                <label for="shareCaption">Caption <span class="muted">(optional)</span></label>
+                <button type="button" class="btn btn-sm btn-ai" id="aiCaption" title="Write a caption with AI, or polish the one you typed">✨ Write with AI</button>
+              </div>
+              <input id="shareCaption" name="caption" maxlength="140" placeholder="e.g. New bench press PR — 80 kg!">
+              <p class="ai-note muted small" id="aiNote" hidden></p>
+            </div>
             <div class="row">
               <label>Your name <span class="muted">(optional)</span><input name="name" maxlength="40" placeholder="e.g. Sara"></label>
               <label>Muscle trained<select name="muscle"><option value="">—</option></select></label>

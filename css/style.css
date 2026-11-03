@@ -212,6 +212,12 @@ select option { background: var(--surface); }
 .dropzone.tall { flex-direction: column; justify-content: center; text-align: center; min-height: 170px; }
 .dropzone.tall img { width: 100%; height: auto; max-height: 240px; border-radius: 10px; object-fit: contain; border: 0; background: #000; }
 .dropzone.tall.has-photo::after { content: "Click to choose a different photo"; }
+.ai-field { display: grid; gap: 6px; }
+.ai-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.ai-head label { font-size: 13px; color: var(--muted); font-weight: 500; }
+.btn-ai { background: linear-gradient(135deg, #8b5cf6, #ff5a1f); color: #fff; }
+.btn-ai:disabled { opacity: .7; cursor: progress; }
+.ai-note.err { color: var(--bad); }
 .form-ok { color: var(--good); font-size: 14px; background: rgb(46 211 160 / .1); border: 1px solid rgb(46 211 160 / .3); border-radius: 10px; padding: 10px 12px; }
 .gallery-wall { display: grid; gap: 16px; }
 .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); gap: 12px; }

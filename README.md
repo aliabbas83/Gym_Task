@@ -45,6 +45,26 @@ The site renders straight away from the bundled `js/data.js`, then swaps in the 
 
 3. Sign in on the website's **Members** section.
 
+## Write with AI (OpenRouter)
+
+The **✨ Write with AI** button next to the gallery caption writes a caption from the chosen muscle, or polishes what the visitor typed. It calls the Supabase Edge Function `write-with-ai` ([supabase/functions/write-with-ai/index.ts](supabase/functions/write-with-ai/index.ts)), and that function calls OpenRouter. The OpenRouter key is stored only as a Supabase secret and never reaches the browser.
+
+Setup: Supabase dashboard → **Edge Functions → Secrets**:
+
+| Secret | Required | Value |
+|---|---|---|
+| `OPENROUTER_API_KEY` | yes | your key from openrouter.ai/keys |
+| `OPENROUTER_MODEL` | no | an OpenRouter model id, by default `anthropic/claude-haiku-5.5` |
+| `ALLOWED_ORIGINS` | no, but recommended once hosted | your site address, e.g. `https://ironhouse.vercel.app` (comma-separate several) |
+
+The function is public, because visitors use it without signing in. It limits each visitor to 8 requests per minute, caps input at 300 characters and output at 120 tokens, and only does the `caption` task. Also set a credit limit on the OpenRouter key, so cost can't run away.
+
+To redeploy after editing the function:
+
+```bash
+npx supabase functions deploy write-with-ai --no-verify-jwt --project-ref axolgiobcbepqnymasgz
+```
+
 ## AI exercise videos (anime style)
 
 Each exercise has an anime-style animated demo built in. Each exercise's anime AI-video prompt is stored in `exercises.ai_video_prompt`, at the length set in `video_length_seconds` (15 s by default). The site shows that stored prompt, and builds a new one when 8 s or 30 s is chosen. To replace a demo with an AI-generated video:

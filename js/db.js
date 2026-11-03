@@ -10,7 +10,8 @@
   };
 
   // DB row <-> app object
-  const fromRow = r => ({ id: r.id, name: r.full_name, phone: r.phone || "", months: r.plan_months, start: r.start_date, level: r.level, goal: r.goal });
+  const BUCKET = "member-photos";
+  const fromRow = r => ({ id: r.id, name: r.full_name, phone: r.phone || "", months: r.plan_months, start: r.start_date, level: r.level, goal: r.goal, photo: r.photo_path || "" });
   const toRow = m => ({ full_name: m.name, phone: m.phone || null, plan_months: m.months, start_date: m.start, level: m.level, goal: m.goal });
   const must = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
 
@@ -72,7 +73,43 @@
     },
     async removeMember(id) {
       if (!sb) { local.set(local.get().filter(m => m.id !== id)); return; }
+      const [row] = must(await sb.from("members").select("photo_path").eq("id", id));
       must(await sb.from("members").delete().eq("id", id));
+      if (row && row.photo_path) await sb.storage.from(BUCKET).remove([row.photo_path]);
+    },
+
+    // ---- member photos (private bucket; offline: small data URL in localStorage) ----
+    // blob: an already-resized image. Replaces any previous photo of the member.
+    async setPhoto(member, blob) {
+      if (!sb) {
+        const dataUrl = await new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = bad; r.readAsDataURL(blob); });
+        await this.updateMemberPhoto(member.id, dataUrl); return dataUrl;
+      }
+      const ext = blob.type === "image/webp" ? "webp" : blob.type === "image/png" ? "png" : "jpg";
+      const path = `${member.id}/${Date.now()}.${ext}`;
+      must(await sb.storage.from(BUCKET).upload(path, blob, { contentType: blob.type, upsert: false }));
+      try { await this.updateMemberPhoto(member.id, path); }
+      catch (err) { await sb.storage.from(BUCKET).remove([path]); throw err; }
+      if (member.photo) await sb.storage.from(BUCKET).remove([member.photo]);
+      return path;
+    },
+    async removePhoto(member) {
+      if (!member.photo) return;
+      await this.updateMemberPhoto(member.id, null);
+      if (sb) await sb.storage.from(BUCKET).remove([member.photo]);
+    },
+    async updateMemberPhoto(id, photo) {
+      if (!sb) { local.set(local.get().map(m => (m.id === id ? { ...m, photo: photo || "" } : m))); return; }
+      must(await sb.from("members").update({ photo_path: photo }).eq("id", id));
+    },
+    // Returns { memberId: displayable URL } — short-lived signed links for the private bucket.
+    async photoUrls(list) {
+      const withPhoto = list.filter(m => m.photo);
+      if (!withPhoto.length) return {};
+      if (!sb) return Object.fromEntries(withPhoto.map(m => [m.id, m.photo]));
+      const signed = must(await sb.storage.from(BUCKET).createSignedUrls(withPhoto.map(m => m.photo), 3600));
+      const byPath = Object.fromEntries(signed.filter(s => s.signedUrl).map(s => [s.path, s.signedUrl]));
+      return Object.fromEntries(withPhoto.filter(m => byPath[m.photo]).map(m => [m.id, byPath[m.photo]]));
     }
   };
 })();

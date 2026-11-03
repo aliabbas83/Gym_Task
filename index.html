@@ -200,6 +200,19 @@
             <h3>New member</h3>
             <label>Full name<input name="name" required maxlength="60" placeholder="e.g. Ahmad Al-Sabah"></label>
             <label>Phone<input name="phone" type="tel" maxlength="20" placeholder="e.g. 9999 9999"></label>
+            <div class="photo-field">
+              <span class="field-label">Photo <span class="muted">(optional)</span></span>
+              <label class="dropzone" id="photoDrop">
+                <input class="sr-only" type="file" name="photo" id="photoInput" accept="image/jpeg,image/png,image/webp">
+                <img id="photoPreview" alt="Selected member photo" hidden>
+                <span class="dz-text" id="photoText"><b>Upload a photo</b> or drag it here<small>JPG, PNG or WebP · up to 5 MB</small></span>
+              </label>
+              <div class="photo-actions" id="photoActions" hidden>
+                <span class="muted small" id="photoInfo"></span>
+                <button type="button" class="link small" id="photoClear">Remove</button>
+              </div>
+              <p class="form-error" id="photoError" hidden></p>
+            </div>
             <div class="row">
               <label>Subscription<select name="months">
                 <option value="1">1 month</option><option value="3" selected>3 months</option><option value="6">6 months</option><option value="12">12 months</option>
@@ -241,6 +254,7 @@
   </div>
 
   <div id="printArea"></div>
+  <input class="sr-only" type="file" id="photoPicker" accept="image/jpeg,image/png,image/webp" tabindex="-1" aria-hidden="true">
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <script src="js/config.js"></script>

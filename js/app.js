@@ -362,11 +362,47 @@
   }
 
   // ---------- members ----------
-  let members = [];
+  let members = [], photoUrls = {};
   const fail = err => alert("Something went wrong: " + (err && err.message ? err.message : err));
   async function reloadMembers() {
     try { members = await DB.listMembers(); } catch (err) { members = []; fail(err); }
+    try { photoUrls = await DB.photoUrls(members); } catch { photoUrls = {}; }
     renderMembers();
+  }
+
+  // ---------- photo upload ----------
+  const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"], PHOTO_MAX = 5 * 1024 * 1024, PHOTO_SIZE = 600;
+  function checkPhoto(file) {
+    if (!file) return "No file selected.";
+    if (!PHOTO_TYPES.includes(file.type)) return "Please choose a JPG, PNG or WebP image.";
+    if (file.size > PHOTO_MAX) return `That image is ${(file.size / 1048576).toFixed(1)} MB — the limit is 5 MB.`;
+    return "";
+  }
+  // Centre-crops to a square and scales to 600 px so uploads stay small; WebP when the browser supports it.
+  async function preparePhoto(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error("This file could not be read as an image.")); i.src = url; });
+      const side = Math.min(img.naturalWidth, img.naturalHeight), out = Math.min(PHOTO_SIZE, side);
+      const c = document.createElement("canvas"); c.width = c.height = out;
+      c.getContext("2d").drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, out, out);
+      const blob = await new Promise(ok => c.toBlob(ok, "image/webp", 0.85));
+      return blob && blob.type === "image/webp" ? blob : await new Promise(ok => c.toBlob(ok, "image/jpeg", 0.85));
+    } finally { URL.revokeObjectURL(url); }
+  }
+  const initials = name => esc(name.split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase());
+  const avatar = (m, cls = "avatar") => photoUrls[m.id]
+    ? `<div class="${cls}"><img src="${esc(photoUrls[m.id])}" alt="Photo of ${esc(m.name)}"></div>`
+    : `<div class="${cls}">${initials(m.name)}</div>`;
+
+  // Changing the photo of an existing member: one hidden picker shared by every card.
+  let photoTarget = null;
+  async function changePhoto(file) {
+    const m = members.find(x => x.id === photoTarget);
+    if (!m || !file) return;
+    const problem = checkPhoto(file);
+    if (problem) return alert(problem);
+    try { await DB.setPhoto(m, await preparePhoto(file)); await reloadMembers(); } catch (err) { fail(err); }
   }
 
   // Which members panel to show: offline → local list; online → staff sign-in gate.
@@ -412,7 +448,7 @@
       const s = status(m);
       return `<article class="card member">
         <div class="member-main">
-          <div class="avatar">${esc(m.name.split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase())}</div>
+          ${avatar(m)}
           <div><h4>${esc(m.name)}</h4><p class="muted small">${esc(m.phone || "No phone")} · ${m.months}-month plan · until ${fmtDate(s.end)}</p></div>
           <span class="status ${s.cls}">${s.text}</span>
         </div>
@@ -420,6 +456,8 @@
         <div class="member-actions">
           <button class="btn btn-sm" data-member="${m.id}">View schedule</button>
           <button class="btn btn-sm btn-ghost" data-renew="${m.id}">Renew</button>
+          <button class="btn btn-sm btn-ghost" data-photo="${m.id}">${m.photo ? "Change photo" : "Add photo"}</button>
+          ${m.photo ? `<button class="btn btn-sm btn-ghost" data-unphoto="${m.id}">Remove photo</button>` : ""}
           <button class="btn btn-sm btn-danger" data-remove="${m.id}">Remove</button>
         </div>
       </article>`;
@@ -445,7 +483,8 @@
     const s = status(m);
     openModal(`<div class="member-sheet" id="sheet">
       <div class="sheet-head">
-        <div><p class="eyebrow">Personal schedule</p><h2 id="modalTitle">${esc(m.name)}</h2>
+        ${avatar(m, "avatar avatar-lg")}
+        <div class="sheet-title"><p class="eyebrow">Personal schedule</p><h2 id="modalTitle">${esc(m.name)}</h2>
         <p class="muted">${LEVELS[m.level]} · ${GOALS[m.goal]} · ${m.months}-month plan (${fmtDate(new Date(m.start + "T00:00:00"))} – ${fmtDate(s.end)}) · <span class="status ${s.cls}">${s.text}</span></p></div>
         <button class="btn btn-sm no-print" data-print-sheet>Print schedule</button>
       </div>
@@ -484,6 +523,12 @@
         return;
       }
       if (t.dataset.signout !== undefined) { DB.signOut().then(refreshAccess); return; }
+      if (t.dataset.photo) { photoTarget = t.dataset.photo; $("#photoPicker").click(); return; }
+      if (t.dataset.unphoto) {
+        const m = members.find(x => x.id === t.dataset.unphoto);
+        if (m && confirm(`Remove the photo of ${m.name}?`)) DB.removePhoto(m).then(reloadMembers, fail);
+        return;
+      }
       if (t.dataset.printSheet !== undefined) return printHTML($("#sheet").outerHTML);
       if (t.id === "downloadPrompts") return downloadPrompts();
       if (t.id === "printWeek") return printHTML(`<h2>Weekly schedule — ${LEVELS[state.level]}, ${GOALS[state.goal]}</h2>${programHTML(state.level, state.goal)}`);
@@ -519,10 +564,45 @@
       btn.disabled = true;
       try {
         const saved = await DB.addMember(m);
-        form.name.value = ""; form.phone.value = "";
+        if (pendingPhoto) {
+          try { await DB.setPhoto(saved, pendingPhoto); }
+          catch (err) { fail(new Error("The member was saved, but the photo could not be uploaded: " + err.message)); }
+        }
+        form.name.value = ""; form.phone.value = ""; clearPhoto();
         await reloadMembers(); openMember(saved.id);
       } catch (err) { fail(err); } finally { btn.disabled = false; }
     });
+
+    // Photo field: click or drag & drop, validated and resized before upload.
+    let pendingPhoto = null, previewUrl = "";
+    const drop = $("#photoDrop"), input = $("#photoInput"), preview = $("#photoPreview"), perr = $("#photoError");
+    function clearPhoto() {
+      pendingPhoto = null; input.value = "";
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = ""; preview.hidden = true; preview.removeAttribute("src");
+      $("#photoText").hidden = false; $("#photoActions").hidden = true; drop.classList.remove("has-photo");
+    }
+    async function pickPhoto(file) {
+      perr.hidden = true;
+      const problem = checkPhoto(file);
+      if (problem) { clearPhoto(); perr.textContent = problem; perr.hidden = false; return; }
+      try {
+        const blob = await preparePhoto(file);
+        clearPhoto();
+        pendingPhoto = blob; previewUrl = URL.createObjectURL(blob);
+        preview.src = previewUrl; preview.hidden = false;
+        $("#photoText").hidden = true; $("#photoActions").hidden = false; drop.classList.add("has-photo");
+        $("#photoInfo").textContent = `${file.name} · ready (${Math.max(1, Math.round(blob.size / 1024))} KB after resizing)`;
+      } catch (err) { clearPhoto(); perr.textContent = err.message; perr.hidden = false; }
+    }
+    input.addEventListener("change", () => pickPhoto(input.files[0]));
+    $("#photoClear").addEventListener("click", clearPhoto);
+    ["dragenter", "dragover"].forEach(t => drop.addEventListener(t, ev => { ev.preventDefault(); drop.classList.add("dragging"); }));
+    ["dragleave", "drop"].forEach(t => drop.addEventListener(t, () => drop.classList.remove("dragging")));
+    drop.addEventListener("drop", ev => { ev.preventDefault(); pickPhoto(ev.dataTransfer.files[0]); });
+
+    const picker = $("#photoPicker");
+    picker.addEventListener("change", () => { changePhoto(picker.files[0]); picker.value = ""; });
 
     const login = $("#staffLogin");
     login.addEventListener("submit", async ev => {

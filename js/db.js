@@ -57,6 +57,12 @@
     async session() { return sb ? (await sb.auth.getSession()).data.session : null; },
     onAuth(cb) { if (sb) sb.auth.onAuthStateChange((_e, s) => cb(s)); },
     async signIn(email, password) { must(await sb.auth.signInWithPassword({ email, password })); },
+    // confirmed: false means Supabase emailed a confirmation link and there is no session yet.
+    async signUp(email, password) {
+      const emailRedirectTo = location.protocol.startsWith("http") ? location.origin + location.pathname : undefined;
+      const data = must(await sb.auth.signUp({ email, password, options: { emailRedirectTo } }));
+      return { confirmed: !!data.session };
+    },
     async signOut() { await sb.auth.signOut(); },
     async isStaff() {
       const s = await this.session();

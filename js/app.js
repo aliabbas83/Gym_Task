@@ -452,6 +452,30 @@
     try { await DB.setPhoto(m, await preparePhoto(file)); await reloadMembers(); } catch (err) { fail(err); }
   }
 
+  // First-page account controls: header buttons plus the card under the hero animation.
+  function renderAuth(session, staff) {
+    const nav = $("#navAuth");
+    nav.hidden = false; $("#authCard").hidden = false;
+    $("#authForm").hidden = !!session; $("#authSigned").hidden = !session;
+    if (session) {
+      nav.innerHTML = `<span class="nav-email muted small" title="${esc(session.user.email)}">${esc(session.user.email)}</span><button class="btn btn-sm btn-ghost" data-signout>Sign out</button>`;
+      $("#authEmail").textContent = session.user.email;
+      $("#authRole").textContent = staff ? "Staff account" : "Member account";
+    } else {
+      nav.innerHTML = `<button class="btn btn-sm btn-ghost" data-authopen="login">Log in</button><button class="btn btn-sm nav-signup" data-authopen="signup">Sign up</button>`;
+    }
+  }
+  function setAuthMode(mode) {
+    const f = $("#authForm"), signup = mode === "signup";
+    f.dataset.mode = mode;
+    $$("[data-authmode]", f).forEach(b => b.setAttribute("aria-checked", b.dataset.authmode === mode));
+    $("#authSubmit").textContent = signup ? "Create account" : "Log in";
+    $("#authConfirmRow").hidden = !signup;
+    f.password.autocomplete = signup ? "new-password" : "current-password";
+    f.confirm.value = "";
+    $("#authError").hidden = true; $("#authOk").hidden = true;
+  }
+
   // Which members panel to show: offline → local list; online → staff sign-in gate.
   async function refreshAccess() {
     const show = id => ["staffLogin", "notStaff", "membersApp"].forEach(x => { $("#" + x).hidden = x !== id; });
@@ -460,6 +484,7 @@
     $("#formNote").textContent = "Saved to the gym database (Supabase). Visible to staff only.";
     const session = await DB.session();
     if (!session) {
+      renderAuth(null);
       bar.hidden = true; members = [];
       if (staffNow) { staffNow = false; reloadGallery(); }
       return show("staffLogin");
@@ -468,6 +493,7 @@
     bar.innerHTML = `<span class="muted small">Signed in as <strong>${esc(session.user.email)}</strong></span><button class="btn btn-sm btn-ghost" data-signout>Sign out</button>`;
     let staff = false;
     try { staff = await DB.isStaff(); } catch (err) { fail(err); }
+    renderAuth(session, staff);
     if (staff !== staffNow) { staffNow = staff; reloadGallery(); }
     if (!staff) return show("notStaff");
     show("membersApp");
@@ -574,7 +600,14 @@
         if (m && confirm(`Remove ${m.name}?`)) DB.removeMember(m.id).then(reloadMembers, fail);
         return;
       }
-      if (t.dataset.signout !== undefined) { DB.signOut().then(refreshAccess); return; }
+      if (t.dataset.signout !== undefined) { DB.signOut().then(refreshAccess, fail); return; }
+      if (t.dataset.authmode) return setAuthMode(t.dataset.authmode);
+      if (t.dataset.authopen) {
+        setAuthMode(t.dataset.authopen);
+        $("#authCard").scrollIntoView({ block: "center" });
+        $("#authForm").email.focus({ preventScroll: true });
+        return;
+      }
       if (t.dataset.photo) { photoTarget = t.dataset.photo; $("#photoPicker").click(); return; }
       if (t.dataset.shot) return openShot(t.dataset.shot);
       if (t.dataset.approve || t.dataset.reject) {
@@ -731,6 +764,33 @@
       err.hidden = true; btn.disabled = true;
       try { await DB.signIn(login.email.value.trim(), login.password.value); login.password.value = ""; await refreshAccess(); }
       catch (e) { err.textContent = e.message; err.hidden = false; }
+      finally { btn.disabled = false; }
+    });
+
+    const auth = $("#authForm");
+    setAuthMode("login");
+    auth.addEventListener("submit", async ev => {
+      ev.preventDefault();
+      const err = $("#authError"), ok = $("#authOk"), btn = $("#authSubmit"), signup = auth.dataset.mode === "signup";
+      const email = auth.email.value.trim(), password = auth.password.value;
+      const problem = !/^\S+@\S+\.\S+$/.test(email) ? "Please enter a valid email address."
+        : !password ? "Please enter your password."
+        : signup && password.length < 8 ? "Please use a password of at least 8 characters."
+        : signup && password !== auth.confirm.value ? "The two passwords don't match."
+        : "";
+      err.hidden = true; ok.hidden = true;
+      if (problem) { err.textContent = problem; err.hidden = false; return; }
+      btn.disabled = true;
+      try {
+        const res = signup ? await DB.signUp(email, password) : (await DB.signIn(email, password), { confirmed: true });
+        auth.password.value = ""; auth.confirm.value = "";
+        if (!res.confirmed) {
+          setAuthMode("login");
+          ok.textContent = "Almost done! Check your email and click the confirmation link, then log in here.";
+          ok.hidden = false;
+        }
+        await refreshAccess();
+      } catch (e) { err.textContent = e.message; err.hidden = false; }
       finally { btn.disabled = false; }
     });
   }

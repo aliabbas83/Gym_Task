@@ -14,7 +14,6 @@
   <header class="site-header">
     <div class="wrap nav">
       <a class="logo" href="#top"><span class="logo-mark">IH</span><span>Iron<b>House</b></span></a>
-      <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
       <nav class="nav-links">
         <a href="#gallery">Gallery</a>
         <a href="#schedule">Schedule</a>
@@ -24,6 +23,8 @@
         <a href="#guide">Training Guide</a>
         <a href="#members" class="btn btn-sm">Members</a>
       </nav>
+      <div class="nav-auth" id="navAuth" hidden></div>
+      <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
     </div>
   </header>
 
@@ -40,9 +41,29 @@
           </div>
           <dl class="stats" id="heroStats"></dl>
         </div>
-        <div class="hero-visual">
-          <canvas id="heroCanvas" aria-label="Animated exercise demonstrations"></canvas>
-          <p class="hero-caption" id="heroCaption"></p>
+        <div class="hero-side">
+          <div class="hero-visual">
+            <canvas id="heroCanvas" aria-label="Animated exercise demonstrations"></canvas>
+            <p class="hero-caption" id="heroCaption"></p>
+          </div>
+          <div class="card auth-card" id="authCard" hidden>
+            <form id="authForm" novalidate>
+              <div class="segmented auth-tabs" role="radiogroup" aria-label="Account action">
+                <button type="button" role="radio" aria-checked="true" data-authmode="login">Log in</button>
+                <button type="button" role="radio" aria-checked="false" data-authmode="signup">Sign up</button>
+              </div>
+              <label>Email<input name="email" type="email" required autocomplete="username" placeholder="you@example.com"></label>
+              <label>Password<input name="password" type="password" required autocomplete="current-password"></label>
+              <label id="authConfirmRow" hidden>Confirm password<input name="confirm" type="password" autocomplete="new-password"></label>
+              <button class="btn" type="submit" id="authSubmit">Log in</button>
+              <p class="form-error" id="authError" role="alert" hidden></p>
+              <p class="form-ok" id="authOk" role="status" hidden></p>
+            </form>
+            <div class="auth-signed" id="authSigned" hidden>
+              <div class="auth-who"><span class="muted small">Signed in as</span><strong id="authEmail"></strong><span class="muted small" id="authRole"></span></div>
+              <button class="btn btn-sm btn-ghost" type="button" data-signout>Sign out</button>
+            </div>
+          </div>
         </div>
       </div>
     </section>

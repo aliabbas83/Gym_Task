@@ -23,7 +23,10 @@
   }
   const fromRow = r => ({ id: r.id, name: r.full_name, phone: r.phone || "", months: r.plan_months, start: r.start_date, level: r.level, goal: r.goal, photo: r.photo_path || "" });
   const toRow = m => ({ full_name: m.name, phone: m.phone || null, plan_months: m.months, start_date: m.start, level: m.level, goal: m.goal });
-  const must = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
+  const must = ({ data, error }) => {
+    if (error) throw Object.assign(new Error(error.message), { code: error.code });
+    return data;
+  };
 
   window.DB = {
     remote: !!sb,

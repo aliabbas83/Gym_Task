@@ -452,6 +452,21 @@
     try { await DB.setPhoto(m, await preparePhoto(file)); await reloadMembers(); } catch (err) { fail(err); }
   }
 
+  // Turns Supabase Auth errors into plain language. The wrong-login message never says which
+  // of the two was wrong, so it can't be used to discover who has an account.
+  function authMessage(err) {
+    const code = err && err.code, text = String((err && err.message) || "");
+    if (code === "invalid_credentials" || /invalid login credentials/i.test(text)) return "That email or password isn't right. Please check them and try again.";
+    if (code === "email_not_confirmed" || /email not confirmed/i.test(text)) return "Please confirm your email first. Check your inbox for the link we sent you.";
+    if (code === "user_already_exists" || code === "email_exists" || /already registered/i.test(text)) return "An account with this email already exists. Try logging in instead.";
+    if (code === "weak_password" || /password should/i.test(text)) return "Please choose a stronger password, with at least 8 characters and a mix of letters and numbers.";
+    if (code === "email_address_invalid" || /email address .*invalid/i.test(text)) return "Please enter a valid email address.";
+    if (code === "signup_disabled" || /signups not allowed/i.test(text)) return "New sign-ups are closed right now. Please contact the gym.";
+    if (/rate_limit/.test(code || "") || /rate limit|too many/i.test(text)) return "Too many attempts. Please wait a few minutes and try again.";
+    if (/failed to fetch|networkerror|load failed/i.test(text)) return "We couldn't reach the server. Check your internet connection and try again.";
+    return "Something went wrong. Please try again.";
+  }
+
   // First-page account controls: header buttons plus the card under the hero animation.
   function renderAuth(session, staff) {
     const nav = $("#navAuth");
@@ -763,7 +778,7 @@
       const err = $("#loginError"), btn = login.querySelector("[type=submit]");
       err.hidden = true; btn.disabled = true;
       try { await DB.signIn(login.email.value.trim(), login.password.value); login.password.value = ""; await refreshAccess(); }
-      catch (e) { err.textContent = e.message; err.hidden = false; }
+      catch (e) { err.textContent = authMessage(e); err.hidden = false; login.password.value = ""; login.password.focus(); }
       finally { btn.disabled = false; }
     });
 
@@ -790,7 +805,10 @@
           ok.hidden = false;
         }
         await refreshAccess();
-      } catch (e) { err.textContent = e.message; err.hidden = false; }
+      } catch (e) {
+        err.textContent = authMessage(e); err.hidden = false;
+        if (!signup) { auth.password.value = ""; auth.password.focus(); }
+      }
       finally { btn.disabled = false; }
     });
   }

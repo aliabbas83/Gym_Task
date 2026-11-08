@@ -14,7 +14,7 @@
   const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
     : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)));
   const extOf = blob => (blob.type === "image/webp" ? "webp" : blob.type === "image/png" ? "png" : "jpg");
-  const fromPhotoRow = (r, url) => ({ id: r.id, path: r.path, url, caption: r.caption, name: r.uploader_name, muscle: r.muscle_id, created: r.created_at, status: r.status });
+  const fromPhotoRow = (r, url) => ({ id: r.id, path: r.path, url, caption: r.caption, name: r.uploader_name, muscle: r.muscle_id, created: r.created_at, status: r.status, owner: r.user_id });
   async function signAll(rows) {
     if (!rows.length) return [];
     const signed = must(await sb.storage.from(GALLERY).createSignedUrls(rows.map(r => r.path), 3600));
@@ -165,6 +165,22 @@
         must(await sb.from("workout_photos").delete().eq("id", photo.id));
         await sb.storage.from(GALLERY).remove([photo.path]);
       }
+    },
+    // ---- a signed-in member's own gallery photos ----
+    // RLS hides other people's rows, so a blocked change returns no rows rather than an error.
+    async listMyPhotos() {
+      const s = sb && await this.session();
+      if (!s) return [];
+      return signAll(must(await sb.from("workout_photos").select("*").eq("user_id", s.user.id).order("created_at", { ascending: false })));
+    },
+    async updateMyPhoto(id, { caption, name, muscle }) {
+      const rows = must(await sb.from("workout_photos").update({ caption, uploader_name: name, muscle_id: muscle || null }).eq("id", id).select("id"));
+      if (!rows.length) throw new Error("This photo couldn't be changed. It may already be deleted.");
+    },
+    async deleteMyPhoto(photo) {
+      const rows = must(await sb.from("workout_photos").delete().eq("id", photo.id).select("id"));
+      if (!rows.length) throw new Error("This photo couldn't be deleted. It may already be gone.");
+      await sb.storage.from(GALLERY).remove([photo.path]);
     },
 
     // Returns { memberId: displayable URL } — short-lived signed links for the private bucket.

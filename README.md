@@ -31,6 +31,9 @@ Then open http://localhost:5173.
 | `muscles`, `equipment`, `exercises`, `exercise_equipment`, `schedule_days`, `schedule_day_muscles` | everyone | dashboard / SQL only |
 | `members` | staff only | staff only |
 | `staff` | the staff user themself | dashboard / SQL only |
+| `workout_photos` | everyone (approved), the owner (own), staff (all) | anyone can submit as pending; the owner can edit or delete their own; staff can review or delete any |
+
+A signed-in member owns the gallery photos they upload (`workout_photos.user_id`, and `owner_id` on the stored file). They can edit the caption, name and muscle, which sends the photo back for staff approval, and they can delete the photo. Replacing the image file isn't allowed; delete it and upload a new one. Photos uploaded without logging in have no owner, so only staff can change them.
 
 The site renders straight away from the bundled `js/data.js`, then swaps in the database version once it loads. To change the program, edit the tables in the Supabase dashboard.
 

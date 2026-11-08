@@ -244,8 +244,12 @@ select option { background: var(--surface); }
 .shot figcaption p { font-size: 14px; }
 .shot-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .pending-panel { border-color: var(--warn); }
-.pending-panel h3 { font-size: 20px; text-transform: uppercase; display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
-.pending-panel .photo-grid { margin-top: 12px; }
+.pending-panel h3, .my-photos h3 { font-size: 20px; text-transform: uppercase; display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+.pending-panel .photo-grid, .my-photos .photo-grid { margin-top: 12px; }
+.photo-edit { display: grid; gap: 14px; }
+.photo-edit-head { display: flex; gap: 14px; align-items: center; }
+.photo-edit-head img { width: 84px; height: 84px; object-fit: cover; border-radius: 10px; flex: none; background: #000; }
+.photo-edit-head h2 { font-size: 24px; text-transform: uppercase; }
 .shot.pending { border-style: dashed; }
 .shot-large { margin: 0; display: grid; gap: 14px; }
 .shot-large img { width: 100%; max-height: 70vh; object-fit: contain; border-radius: 12px; background: #000; }

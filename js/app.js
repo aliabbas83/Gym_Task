@@ -404,7 +404,7 @@
     : `<div class="${cls}">${initials(m.name)}</div>`;
 
   // ---------- community workout gallery ----------
-  let gallery = [], pending = [], staffNow = false;
+  let gallery = [], pending = [], mine = [], staffNow = false, myId = null, galleryRun = 0;
   const ago = iso => {
     const d = Math.round((Date.now() - new Date(iso)) / 86400000);
     return d <= 0 ? "today" : d === 1 ? "yesterday" : d < 30 ? `${d} days ago` : fmtDate(new Date(iso));
@@ -417,10 +417,16 @@
         ${p.caption ? `<p>${esc(p.caption)}</p>` : ""}
         <div class="shot-meta">${m ? chip(p.muscle) : ""}<span class="muted small">${esc(p.name || "Member")} · ${ago(p.created)}</span></div>
         ${staff ? `<div class="member-actions"><button class="btn btn-sm" data-approve="${p.id}">Approve</button><button class="btn btn-sm btn-danger" data-reject="${p.id}">Reject</button></div>` : ""}
+        ${!staff && myId && p.owner === myId ? `<div class="member-actions"><button class="btn btn-sm btn-ghost" data-editshot="${p.id}">Edit</button><button class="btn btn-sm btn-danger" data-deleteshot="${p.id}">Delete</button></div>` : ""}
       </figcaption>
     </figure>`;
   }
   function renderGallery() {
+    const own = $("#myPhotos"), waiting = mine.filter(p => p.status !== "approved");
+    own.hidden = !waiting.length;
+    if (!own.hidden) own.innerHTML = `<h3>Your photos waiting for approval <span class="badge">${waiting.length}</span></h3>
+      <p class="muted small">Only you and the coaches can see these until they're approved.</p>
+      <div class="photo-grid">${waiting.map(p => photoCard(p, false)).join("")}</div>`;
     $("#photoGrid").innerHTML = gallery.length ? gallery.map(p => photoCard(p, false)).join("")
       : `<div class="card empty-card"><p>No workout photos yet — be the first to share one!</p></div>`;
     const panel = $("#pendingPanel");
@@ -430,12 +436,47 @@
       <div class="photo-grid">${pending.map(p => photoCard(p, true)).join("")}</div>`;
   }
   async function reloadGallery() {
-    try { gallery = await DB.listGallery(); } catch (err) { gallery = []; console.warn("Gallery unavailable", err); }
-    try { pending = staffNow ? await DB.listPendingPhotos() : []; } catch { pending = []; }
+    // If login state changes mid-load, the newer load wins so nobody sees a stale list.
+    const run = ++galleryRun;
+    const [g, w, m] = await Promise.all([
+      DB.listGallery().catch(err => { console.warn("Gallery unavailable", err); return []; }),
+      (staffNow ? DB.listPendingPhotos() : Promise.resolve([])).catch(() => []),
+      (myId ? DB.listMyPhotos() : Promise.resolve([])).catch(err => { console.warn("Your photos unavailable", err); return []; })
+    ]);
+    if (run !== galleryRun) return;
+    gallery = g; pending = w; mine = m;
     renderGallery();
   }
+  function openPhotoEdit(id) {
+    const p = mine.find(x => x.id === id);
+    if (!p) return;
+    const opts = Object.entries(muscles).map(([k, v]) => `<option value="${esc(k)}"${k === p.muscle ? " selected" : ""}>${esc(v.name)}</option>`).join("");
+    openModal(`<form class="photo-edit" id="photoEditForm" data-id="${esc(p.id)}" autocomplete="off">
+      <div class="photo-edit-head"><img src="${esc(p.url)}" alt=""><h2 id="modalTitle">Edit your photo</h2></div>
+      <label>Caption <span class="muted">(optional)</span><input name="caption" maxlength="140" value="${esc(p.caption)}"></label>
+      <div class="row">
+        <label>Your name <span class="muted">(optional)</span><input name="uploader" maxlength="40" value="${esc(p.name)}"></label>
+        <label>Muscle trained<select name="muscle"><option value="">—</option>${opts}</select></label>
+      </div>
+      ${p.status === "approved" ? `<p class="muted small">Saving sends this photo back to a coach for approval. It leaves the public gallery until it's approved again.</p>` : ""}
+      <div class="member-actions"><button class="btn" type="submit">Save changes</button><button class="btn btn-ghost" type="button" data-close>Cancel</button></div>
+      <p class="form-error" id="photoEditError" hidden></p>
+    </form>`);
+  }
+  async function savePhotoEdit(form) {
+    const btn = form.querySelector("[type=submit]"), err = $("#photoEditError");
+    btn.disabled = true; btn.textContent = "Saving…"; err.hidden = true;
+    try {
+      await DB.updateMyPhoto(form.dataset.id, { caption: form.elements.caption.value.trim(), name: form.elements.uploader.value.trim(), muscle: form.elements.muscle.value });
+      closeModal();
+      await reloadGallery();
+    } catch (e) {
+      err.textContent = e.message; err.hidden = false;
+      btn.disabled = false; btn.textContent = "Save changes";
+    }
+  }
   function openShot(id) {
-    const p = gallery.concat(pending).find(x => x.id === id);
+    const p = gallery.concat(pending, mine).find(x => x.id === id);
     if (!p) return;
     openModal(`<figure class="shot-large"><img src="${esc(p.url)}" alt="${esc(p.caption || "Workout photo")}">
       <figcaption><h2 id="modalTitle">${esc(p.caption || "Workout photo")}</h2>
@@ -498,10 +539,12 @@
     if (!DB.remote) { bar.hidden = true; show("membersApp"); return reloadMembers(); }
     $("#formNote").textContent = "Saved to the gym database (Supabase). Visible to staff only.";
     const session = await DB.session();
+    const prevId = myId;
+    myId = session ? session.user.id : null;
     if (!session) {
       renderAuth(null);
       bar.hidden = true; members = [];
-      if (staffNow) { staffNow = false; reloadGallery(); }
+      if (staffNow || prevId) { staffNow = false; reloadGallery(); }
       return show("staffLogin");
     }
     bar.hidden = false;
@@ -509,7 +552,7 @@
     let staff = false;
     try { staff = await DB.isStaff(); } catch (err) { fail(err); }
     renderAuth(session, staff);
-    if (staff !== staffNow) { staffNow = staff; reloadGallery(); }
+    if (staff !== staffNow || myId !== prevId) { staffNow = staff; reloadGallery(); }
     if (!staff) return show("notStaff");
     show("membersApp");
     reloadMembers();
@@ -625,6 +668,14 @@
       }
       if (t.dataset.photo) { photoTarget = t.dataset.photo; $("#photoPicker").click(); return; }
       if (t.dataset.shot) return openShot(t.dataset.shot);
+      if (t.dataset.editshot) return openPhotoEdit(t.dataset.editshot);
+      if (t.dataset.deleteshot) {
+        const p = mine.find(x => x.id === t.dataset.deleteshot);
+        if (!p || !confirm("Delete this photo? This can't be undone.")) return;
+        t.disabled = true;
+        DB.deleteMyPhoto(p).then(reloadGallery, err => { t.disabled = false; fail(err); });
+        return;
+      }
       if (t.dataset.approve || t.dataset.reject) {
         const p = pending.find(x => x.id === (t.dataset.approve || t.dataset.reject));
         if (!p) return;
@@ -648,6 +699,11 @@
       if (t.closest(".nav-links")) document.body.classList.remove("nav-open");
     });
     modal.addEventListener("click", ev => { if (ev.target.classList.contains("modal-backdrop")) closeModal(); });
+    modal.addEventListener("submit", ev => {
+      if (ev.target.id !== "photoEditForm") return;
+      ev.preventDefault();
+      savePhotoEdit(ev.target);
+    });
     document.addEventListener("keydown", ev => { if (ev.key === "Escape" && !modal.hidden) closeModal(); });
 
     const goalOpts = Object.entries(GOALS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");

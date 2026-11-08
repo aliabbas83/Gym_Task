@@ -10,11 +10,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="locked">
   <header class="site-header">
     <div class="wrap nav">
       <a class="logo" href="#top"><span class="logo-mark">IH</span><span>Iron<b>House</b></span></a>
       <nav class="nav-links">
+        <a href="#pricing">Plans</a>
         <a href="#gallery">Gallery</a>
         <a href="#schedule">Schedule</a>
         <a href="#bodyparts">Body Parts</a>
@@ -68,6 +69,22 @@
       </div>
     </section>
 
+    <section id="pricing" class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Membership</p>
+            <h2>Subscription plans</h2>
+            <p class="muted">Subscribe to unlock the weekly schedule, every exercise with its video, sets, reps and kg weights for your level, the equipment guide and the training guide. Pay online with KNET or card.</p>
+          </div>
+        </div>
+        <div class="pay-banner" id="payBanner" role="status" hidden></div>
+        <p class="sub-status" id="subStatus" hidden></p>
+        <div class="plan-grid" id="planGrid"></div>
+        <p class="form-error" id="planError" role="alert" hidden></p>
+      </div>
+    </section>
+
     <section id="gallery" class="section alt">
       <div class="wrap">
         <div class="section-head">
@@ -115,7 +132,7 @@
       </div>
     </section>
 
-    <section id="schedule" class="section">
+    <section id="schedule" class="section gated">
       <div class="wrap">
         <div class="section-head">
           <div>
@@ -134,7 +151,7 @@
       </div>
     </section>
 
-    <section id="bodyparts" class="section alt">
+    <section id="bodyparts" class="section alt gated">
       <div class="wrap">
         <div class="section-head">
           <div>
@@ -148,7 +165,7 @@
       </div>
     </section>
 
-    <section id="exercises" class="section">
+    <section id="exercises" class="section gated">
       <div class="wrap">
         <div class="section-head">
           <div>
@@ -169,7 +186,7 @@
       </div>
     </section>
 
-    <section id="equipment" class="section alt">
+    <section id="equipment" class="section alt gated">
       <div class="wrap">
         <div class="section-head">
           <div>
@@ -183,7 +200,7 @@
       </div>
     </section>
 
-    <section id="guide" class="section">
+    <section id="guide" class="section gated">
       <div class="wrap">
         <div class="section-head">
           <div>

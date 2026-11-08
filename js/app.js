@@ -65,15 +65,17 @@
   const muscleSpec = ex => ({ anim: ex.anim, color: muscles[ex.muscle].color, muscle: ex.muscle });
 
   // ---------- hero ----------
+  // Uses only the public summary in data.js, so it works before anyone logs in.
   function renderHero() {
+    const n = window.GYM.counts;
     const stats = [
-      [Object.keys(muscles).length, "muscle groups"],
-      [exercises.length, "exercises"],
-      [equipment.length, "pieces of equipment"],
-      [week.filter(d => d.muscles.length).length, "training days / week"]
+      [n.muscles, "muscle groups"],
+      [n.exercises, "exercises"],
+      [n.equipment, "pieces of equipment"],
+      [n.days, "training days / week"]
     ];
-    $("#heroStats").innerHTML = stats.map(([n, l]) => `<div><dt>${n}</dt><dd>${l}</dd></div>`).join("");
-    const picks = ["bench-press", "deadlift", "back-squat", "ohp", "barbell-curl", "pull-up"].map(id => exById[id]);
+    $("#heroStats").innerHTML = stats.map(([v, l]) => `<div><dt>${v}</dt><dd>${l}</dd></div>`).join("");
+    const picks = window.GYM.hero;
     Anim.attach($("#heroCanvas"), muscleSpec(picks[0]), { cycle: picks.map(muscleSpec) });
     const cap = $("#heroCaption");
     const tick = () => { const ex = picks[Anim.cycleIndex($("#heroCanvas"))]; cap.textContent = ex.name; cap.style.setProperty("--c", muscles[ex.muscle].color); };
@@ -509,14 +511,15 @@
   }
 
   // First-page account controls: header buttons plus the card under the hero animation.
-  function renderAuth(session, staff) {
+  function renderAuth(session, staff, ends) {
     const nav = $("#navAuth");
     nav.hidden = false; $("#authCard").hidden = false;
     $("#authForm").hidden = !!session; $("#authSigned").hidden = !session;
     if (session) {
       nav.innerHTML = `<span class="nav-email muted small" title="${esc(session.user.email)}">${esc(session.user.email)}</span><button class="btn btn-sm btn-ghost" data-signout>Sign out</button>`;
       $("#authEmail").textContent = session.user.email;
-      $("#authRole").textContent = staff ? "Staff account" : "Member account";
+      $("#authRole").textContent = staff ? "Staff account"
+        : isActive(ends) ? `Subscribed until ${fmtDate(new Date(ends))}` : "Member account · no active subscription";
     } else {
       nav.innerHTML = `<button class="btn btn-sm btn-ghost" data-authopen="login">Log in</button><button class="btn btn-sm nav-signup" data-authopen="signup">Sign up</button>`;
     }
@@ -532,26 +535,148 @@
     $("#authError").hidden = true; $("#authOk").hidden = true;
   }
 
+  // ---------- subscription: plans, paywall and payment return ----------
+  const isActive = ends => !!ends && new Date(ends) > new Date();
+  let plans = [], accessNow = null, catalogRun = 0, subEnds = null, isStaffNow = false, signedIn = false;
+
+  // Locks or unlocks the subscriber sections. The program is fetched only when access is on, and
+  // the database (RLS) returns it only to subscribers and staff.
+  function setAccess(on, ends, staff, hasSession) {
+    subEnds = ends; isStaffNow = staff; signedIn = hasSession;
+    renderSubStatus();
+    if (on === accessNow) return;
+    accessNow = on;
+    const run = ++catalogRun;
+    if (!on) {
+      document.body.classList.add("locked");
+      useCatalog({ muscles, week: [], equipment: [], exercises: [] });
+      renderCatalog();
+      return;
+    }
+    DB.loadCatalog().then(g => {
+      if (run !== catalogRun) return;
+      if (!g) throw new Error("No program data came back.");
+      useCatalog(g);
+      if (state.muscle !== "all" && !muscles[state.muscle]) state.muscle = "all";
+      renderCatalog();
+      document.body.classList.remove("locked");
+    }).catch(err => {
+      if (run !== catalogRun) return;
+      accessNow = null; // try again on the next refresh
+      console.warn("Program unavailable", err);
+      $$(".lock-text").forEach(p => { p.textContent = "The program couldn't be loaded. Please refresh the page."; });
+    });
+  }
+
+  function addLockPanels() {
+    $$("section.gated").forEach(s => $(".section-head", s).insertAdjacentHTML("afterend",
+      `<div class="card lock-panel"><span class="lock-icon" aria-hidden="true">🔒</span>
+        <div><h3>For subscribers</h3><p class="muted lock-text"></p></div>
+        <a class="btn" href="#pricing">See plans</a></div>`));
+  }
+
+  function renderSubStatus() {
+    const box = $("#subStatus"), active = isActive(subEnds);
+    const lock = signedIn
+      ? "Your account doesn't have an active subscription. Choose a plan to unlock this section."
+      : "Subscribe to unlock this section. Already a subscriber? Log in at the top of the page.";
+    $$(".lock-text").forEach(p => { p.textContent = lock; });
+    box.innerHTML = isStaffNow ? "You're logged in with a staff account, so everything is unlocked."
+      : active ? `Your subscription is active until <strong>${fmtDate(new Date(subEnds))}</strong>. Buying another plan adds its time on top.`
+      : subEnds ? `Your subscription ended on <strong>${fmtDate(new Date(subEnds))}</strong>. Choose a plan to continue.`
+      : signedIn ? "" : "Log in or create an account first, then choose your plan.";
+    box.hidden = !box.innerHTML;
+    $$("#planGrid [data-plan]").forEach(b => { b.textContent = active ? "Add time" : "Subscribe"; });
+  }
+
+  async function loadPlans() {
+    try { plans = await DB.listPlans(); } catch (err) { plans = []; console.warn("Plans unavailable", err); }
+    const monthly = plans.find(p => p.months === 1);
+    $("#planGrid").innerHTML = plans.length ? plans.map(p => {
+      const per = p.price / p.months;
+      const save = monthly && p.months > 1 ? Math.round((1 - per / monthly.price) * 100) : 0;
+      return `<article class="card plan${p.months === 12 ? " best" : ""}">
+        <div class="plan-top"><h3>${esc(p.name)}</h3>${save > 0 ? `<span class="badge">Save ${save}%</span>` : ""}</div>
+        <p class="plan-price">${p.price.toFixed(3)} <span>KWD</span></p>
+        <p class="muted small">${p.months > 1 ? `${per.toFixed(3)} KWD per month · ` : ""}one payment, no automatic renewal</p>
+        <button class="btn" data-plan="${esc(p.id)}">Subscribe</button>
+      </article>`;
+    }).join("") : `<div class="card empty-card"><p>The plans couldn't be loaded. Please refresh the page.</p></div>`;
+    renderSubStatus();
+  }
+
+  async function checkout(btn) {
+    const err = $("#planError");
+    err.hidden = true;
+    if (!signedIn) {
+      setAuthMode("signup");
+      const ok = $("#authOk");
+      ok.textContent = "Create an account (or switch to Log in), then choose your plan.";
+      ok.hidden = false;
+      $("#authCard").scrollIntoView({ block: "center" });
+      $("#authForm").email.focus({ preventScroll: true });
+      return;
+    }
+    const label = btn.textContent;
+    btn.disabled = true; btn.textContent = "Opening payment…";
+    try {
+      location.href = await DB.startCheckout(btn.dataset.plan);
+    } catch (e) {
+      err.textContent = e.message; err.hidden = false;
+      btn.disabled = false; btn.textContent = label;
+    }
+  }
+
+  // MyFatoorah sends the member back with ?payment=done|failed&paymentId=…
+  // The server checks the payment with MyFatoorah; the address bar is never trusted.
+  async function handlePaymentReturn() {
+    const q = new URLSearchParams(location.search);
+    const pid = q.get("paymentId") || q.get("PaymentId"), result = q.get("payment");
+    if (!pid && !result) return;
+    const banner = $("#payBanner");
+    const say = (cls, html) => {
+      banner.className = `pay-banner ${cls}`; banner.innerHTML = html; banner.hidden = false;
+      banner.scrollIntoView({ block: "center" });
+    };
+    const clearUrl = () => history.replaceState(null, "", location.pathname + "#pricing");
+    const failed = "The payment wasn't completed. Please try again, or contact the gym if your bank shows a charge.";
+    if (!pid) { clearUrl(); return say("bad", failed); }
+    say("wait", "Checking your payment…");
+    try {
+      const r = await DB.verifyPayment(pid);
+      if (r.status === "paid") {
+        clearUrl();
+        say("good", `Payment received, thank you! Your subscription is active until <strong>${fmtDate(new Date(r.ends_at))}</strong>.`);
+        await refreshAccess();
+      } else if (r.status === "pending") {
+        say("wait", "Your payment is still being processed. Refresh this page in a minute to check again.");
+      } else { clearUrl(); say("bad", failed); }
+    } catch (e) { say("bad", esc(e.message)); }
+  }
+
   // Which members panel to show: offline → local list; online → staff sign-in gate.
   async function refreshAccess() {
     const show = id => ["staffLogin", "notStaff", "membersApp"].forEach(x => { $("#" + x).hidden = x !== id; });
     const bar = $("#staffBar");
-    if (!DB.remote) { bar.hidden = true; show("membersApp"); return reloadMembers(); }
+    if (!DB.remote) { bar.hidden = true; setAccess(false, null, false, false); show("membersApp"); return reloadMembers(); }
     $("#formNote").textContent = "Saved to the gym database (Supabase). Visible to staff only.";
     const session = await DB.session();
     const prevId = myId;
     myId = session ? session.user.id : null;
     if (!session) {
       renderAuth(null);
+      setAccess(false, null, false, false);
       bar.hidden = true; members = [];
       if (staffNow || prevId) { staffNow = false; reloadGallery(); }
       return show("staffLogin");
     }
     bar.hidden = false;
     bar.innerHTML = `<span class="muted small">Signed in as <strong>${esc(session.user.email)}</strong></span><button class="btn btn-sm btn-ghost" data-signout>Sign out</button>`;
-    let staff = false;
+    let staff = false, ends = null;
     try { staff = await DB.isStaff(); } catch (err) { fail(err); }
-    renderAuth(session, staff);
+    try { ends = await DB.mySubscription(); } catch (err) { console.warn("Subscription unavailable", err); }
+    renderAuth(session, staff, ends);
+    setAccess(staff || isActive(ends), ends, staff, true);
     if (staff !== staffNow || myId !== prevId) { staffNow = staff; reloadGallery(); }
     if (!staff) return show("notStaff");
     show("membersApp");
@@ -668,6 +793,7 @@
       }
       if (t.dataset.photo) { photoTarget = t.dataset.photo; $("#photoPicker").click(); return; }
       if (t.dataset.shot) return openShot(t.dataset.shot);
+      if (t.dataset.plan) return checkout(t);
       if (t.dataset.editshot) return openPhotoEdit(t.dataset.editshot);
       if (t.dataset.deleteshot) {
         const p = mine.find(x => x.id === t.dataset.deleteshot);
@@ -874,13 +1000,7 @@
   function renderCatalog() { renderWeek(); renderRegions(); renderFilters(); renderExercises(); renderEquipment(); renderGuide(); }
 
   $("#year").textContent = new Date().getFullYear();
-  renderHero(); renderCatalog(); bind(); refreshAccess(); reloadGallery();
+  addLockPanels();
+  renderHero(); renderCatalog(); bind(); refreshAccess(); reloadGallery(); loadPlans(); handlePaymentReturn();
   DB.onAuth(() => setTimeout(refreshAccess, 0));
-  DB.loadCatalog().then(g => {
-    if (!g) return;
-    useCatalog(g);
-    if (state.muscle !== "all" && !muscles[state.muscle]) state.muscle = "all";
-    renderCatalog();
-    document.documentElement.dataset.source = "supabase";
-  }).catch(err => console.warn("Supabase catalog unavailable, using bundled data.", err));
 })();

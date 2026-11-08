@@ -27,6 +27,17 @@
     if (error) throw Object.assign(new Error(error.message), { code: error.code });
     return data;
   };
+  // Calls an edge function. On a non-2xx reply, the function's JSON { error } becomes the message.
+  async function invoke(name, body) {
+    const { data, error } = await sb.functions.invoke(name, { body });
+    if (error) {
+      let msg = error.message;
+      try { const b = await error.context.json(); if (b && b.error) msg = b.error; } catch { /* keep generic */ }
+      if (/failed to send a request|failed to fetch/i.test(msg)) msg = "We couldn't reach the server. Check your internet connection and try again.";
+      throw new Error(msg);
+    }
+    return data;
+  }
 
   window.DB = {
     remote: !!sb,
@@ -124,15 +135,35 @@
     // ---- Write with AI (Supabase Edge Function → OpenRouter) ----
     async writeWithAI({ task, muscle = "", draft = "" }) {
       if (!sb) throw new Error("Write with AI needs the Supabase connection.");
-      const { data, error } = await sb.functions.invoke("write-with-ai", { body: { task, muscle, draft } });
-      if (error) {
-        // Non-2xx: the function's JSON { error } explains why.
-        let msg = error.message;
-        try { const b = await error.context.json(); if (b && b.error) msg = b.error; } catch { /* keep generic */ }
-        throw new Error(msg);
-      }
+      const data = await invoke("write-with-ai", { task, muscle, draft });
       if (!data || !data.text) throw new Error("No text came back — please try again.");
       return data.text;
+    },
+
+    // ---- subscriptions (MyFatoorah through the create-payment / verify-payment edge functions) ----
+    async listPlans() {
+      if (!sb) return [];
+      return must(await sb.from("plans").select("id, name, months, price_kwd").order("sort"))
+        .map(p => ({ id: p.id, name: p.name, months: p.months, price: +p.price_kwd }));
+    },
+    // When the logged-in member's subscription ends (ISO string), or null if they never had one.
+    async mySubscription() {
+      const s = sb && await this.session();
+      if (!s) return null;
+      const rows = must(await sb.from("subscriptions").select("ends_at").eq("user_id", s.user.id));
+      return rows.length ? rows[0].ends_at : null;
+    },
+    // Returns the MyFatoorah payment page URL for the chosen plan.
+    async startCheckout(planId) {
+      if (!sb) throw new Error("Online payment needs the Supabase connection.");
+      const data = await invoke("create-payment", { plan: planId });
+      if (!data || !data.url) throw new Error("The payment page couldn't be opened. Please try again.");
+      return data.url;
+    },
+    // Asks the server to confirm a payment with MyFatoorah: { status: "paid" | "pending" | "failed", ends_at? }
+    async verifyPayment(paymentId) {
+      if (!sb) throw new Error("Online payment needs the Supabase connection.");
+      return invoke("verify-payment", { paymentId });
     },
 
     // ---- public workout gallery: anyone submits, staff approve before it is shown ----

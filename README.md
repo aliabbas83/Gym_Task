@@ -1,5 +1,7 @@
 # IronHouse Bodybuilding Gym
 
+> **Moving or picking up this project?** Start with [projectDescription.md](projectDescription.md). It covers the full build, the database schema, the payment flow, the build history, and step-by-step instructions for moving to a new GitHub, Vercel, Supabase or Claude account. The database schema is in [supabase/migrations/](supabase/migrations), and every secret the functions need is listed in [supabase/functions/.env.example](supabase/functions/.env.example).
+
 A static website for a bodybuilding gym:
 
 - **Paid subscription (home page):** 1, 3, 6 and 12 month plans in KWD, paid online through MyFatoorah (KNET or card). The home page, plans and community gallery are public. The schedule, exercises by body part, exercise library, equipment and training guide are for subscribers and staff only; everyone else sees a locked panel with a link to the plans. See [Subscriptions (MyFatoorah)](#subscriptions-myfatoorah).
